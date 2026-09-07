@@ -1,0 +1,14 @@
+# Không bao giờ commit — chứa API key, mật khẩu DB, secret JWT
+.env
+.env.local
+
+# Cài lại bằng npm install, không cần lưu trong git
+node_modules/
+
+# Sách PDF chỉ cần tồn tại cục bộ lúc chạy upload-books.js — sau khi chạy,
+# nội dung đã nằm trong MongoDB rồi, git không cần giữ bản sao nặng nề này.
+books/
+
+# Log và file tạm thường gặp
+*.log
+.DS_Store

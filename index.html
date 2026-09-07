@@ -1,0 +1,2844 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RusWriteAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Nunito:wght@400;500;600;700;800&family=Parisienne&display=swap" rel="stylesheet">
+<!-- Cloudflare Turnstile.
+     Dùng render=explicit vì widget nằm trong modal đang ẩn: để Turnstile tự
+     tìm và dựng widget trong một phần tử display:none có thể ra khung rộng 0px.
+     Ta chủ động dựng đúng lúc modal mở ra. -->
+<script>
+window.__tsReady = false;
+function onTurnstileReady(){
+    window.__tsReady = true;
+    if(typeof window.mountTurnstile === 'function') window.mountTurnstile();
+}
+</script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady&render=explicit" async defer></script>
+
+<!-- PDF.js — просмотр книг -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<style>
+/* ==========================================================================
+   RusWrite AI — «Русская сказка»
+   Một ngày mùa xuân sáng ở nước Nga. Nền ngà ấm, trời xanh nhạt, mái vòm củ
+   hành ở chân trời. Người học đi qua sáu miền đất, mỗi miền một khung cảnh.
+   ========================================================================== */
+:root{
+    /* Nền sáng */
+    --ivory:#FFFBF3;
+    --cream:#FDF3E2;
+    --snow:#FFFFFF;
+    --sky:#EAF4FD;
+    --sky-deep:#D6E7F8;
+
+    /* Lam Nga */
+    --blue:#2E5EAA;
+    --blue-lt:#4A90D9;
+    --blue-pale:#E3EFFB;
+    --gzhel:#3A6FB0;
+
+    /* Đỏ mọng & san hô */
+    --red:#D4506A;
+    --red-deep:#B33E56;
+    --coral:#E8735A;
+
+    /* Nắng & dân gian */
+    --gold:#F2B544;
+    --gold-deep:#D99A2B;
+    --green:#5A9E6F;
+    --lav:#9B8AC4;
+
+    /* Chữ */
+    --ink:#2A3A57;
+    --ink-soft:#6B7A94;
+    --ink-faint:#9AA6BC;
+    --line:#EDE3D0;
+    --line-blue:#D8E6F5;
+
+    /* ---- ЕДИНЫЕ ТОКЕНЫ ДИЗАЙНА ----
+       Mọi component đều lấy từ đây. Không component nào tự đặt bán kính,
+       bóng đổ hay chiều cao nút riêng — đó là nguồn gốc của cảm giác chắp vá. */
+    --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:30px;
+    --r-pill:99px;
+
+    /* Bóng đổ nhẹ hơn hẳn bản trước: sản phẩm cao cấp không "nổi" khỏi mặt giấy */
+    --sh-sm:0 1px 2px rgba(42,58,87,.06), 0 2px 8px -4px rgba(42,58,87,.10);
+    --sh-md:0 2px 6px -2px rgba(42,58,87,.08), 0 10px 24px -12px rgba(42,58,87,.14);
+    --sh-lg:0 4px 12px -4px rgba(42,58,87,.10), 0 24px 48px -20px rgba(42,58,87,.20);
+
+    /* Đường viền: 1px là mặc định, 2px chỉ dành cho trạng thái active */
+    --bd:1px solid var(--line);
+    --bd-blue:1px solid var(--line-blue);
+
+    /* Khoảng cách */
+    --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem; --sp-6:2rem;
+
+    /* Chiều cao điều khiển — thống nhất mọi nút và ô nhập */
+    --h-ctl:38px; --h-ctl-sm:32px;
+
+    --ease:cubic-bezier(.22,.68,.36,1);
+    --bounce:cubic-bezier(.34,1.56,.64,1);
+    --t-fast:.15s var(--ease);
+    --t:.22s var(--ease);
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+    margin:0;
+    font-family:'Nunito',system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--ivory);
+    /* Trời xuân: quầng xanh trên cao, hơi ấm vàng dưới thấp */
+    background-image:
+        linear-gradient(180deg, var(--sky) 0, rgba(234,244,253,.35) 340px, transparent 620px),
+        radial-gradient(900px 420px at 88% 2%, rgba(242,181,68,.13), transparent 65%),
+        radial-gradient(760px 380px at 6% 8%, rgba(155,138,196,.12), transparent 62%);
+    background-attachment:fixed;
+    display:flex;flex-direction:column;
+    -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,.serif{font-family:'Lora',Georgia,serif;font-weight:600;}
+button{font-family:inherit;}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:8px;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--sky-deep);border-radius:99px;border:3px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-thumb:hover{background:var(--blue-pale);background-clip:content-box;}
+
+/* Tuyết rơi rất nhẹ trên toàn trang — trang trí thuần tuý, không chắn chuột */
+.snowfall{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;}
+.snowfall span{
+    position:absolute;top:-10px;border-radius:99px;background:#fff;
+    box-shadow:0 0 5px rgba(74,144,217,.35);
+    animation:fall linear infinite;
+}
+@keyframes fall{
+    0%{transform:translateY(-10px) translateX(0);opacity:0;}
+    10%{opacity:.9;}
+    90%{opacity:.7;}
+    100%{transform:translateY(102vh) translateX(28px);opacity:0;}
+}
+
+/* ---------- Nút ---------- */
+/* ---------- НОПКИ ----------
+   Nguyên tắc: viền 1px, nền phẳng, bóng rất nhẹ, hover chỉ đổi màu chứ không
+   nhảy lên. Phân cấp bằng MÀU chứ không bằng kích thước hay độ đậm của bóng. */
+.btn{
+    display:inline-flex;align-items:center;gap:.45rem;justify-content:center;
+    height:var(--h-ctl);padding:0 1rem;
+    border:1px solid transparent;cursor:pointer;
+    font-family:inherit;font-weight:700;font-size:.85rem;letter-spacing:.005em;
+    border-radius:var(--r-sm);color:#fff;
+    transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast),box-shadow var(--t-fast);
+}
+.btn:focus-visible{outline:2px solid var(--blue-lt);outline-offset:2px;}
+.btn:active{transform:translateY(.5px);}
+
+/* Chính — lam Nga. Chỉ dùng cho hành động chính của mỗi màn hình. */
+.btn-blue{background:var(--blue);border-color:var(--blue);box-shadow:var(--sh-sm);}
+.btn-blue:hover{background:#25508F;border-color:#25508F;}
+
+/* Phụ — trắng ấm có viền. Dùng cho phần lớn nút còn lại. */
+.btn-soft{background:var(--snow);color:var(--blue);border-color:var(--line-blue);box-shadow:var(--sh-sm);}
+.btn-soft:hover{background:var(--blue-pale);border-color:var(--blue-lt);}
+
+/* Nhấn — đỏ. Chỉ dành cho hành động dứt khoát, KHÔNG dùng tràn lan. */
+.btn-red{background:var(--red);border-color:var(--red);box-shadow:var(--sh-sm);}
+.btn-red:hover{background:var(--red-deep);border-color:var(--red-deep);}
+
+.btn-gold{background:var(--gold);border-color:var(--gold);color:#5C3F06;box-shadow:var(--sh-sm);}
+.btn-gold:hover{background:var(--gold-deep);border-color:var(--gold-deep);}
+
+/* Lặng — không viền, không nền. Dùng cho "để sau", "đóng". */
+.btn-plain{background:transparent;color:var(--ink-soft);font-weight:600;}
+.btn-plain:hover{color:var(--blue);background:var(--blue-pale);}
+
+.btn-sm{height:var(--h-ctl-sm);padding:0 .75rem;font-size:.78rem;}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn ~ .btn{margin-left:0;}
+
+/* ==========================================================================
+   HEADER — có panorama Moskva rất nhạt phía sau
+   ========================================================================== */
+.appbar{
+    position:sticky;top:0;z-index:30;
+    background:rgba(255,251,243,.92);
+    backdrop-filter:blur(12px);
+    border-bottom:2px solid var(--line);
+    overflow:hidden;
+}
+.appbar-pano{position:absolute;right:0;bottom:-2px;width:min(620px,58%);opacity:.16;pointer-events:none;}
+.appbar-inner{position:relative;z-index:2;display:flex;align-items:center;gap:1.25rem;padding:.7rem clamp(1rem,3vw,2rem);}
+/* ---------- ЛОГОТИП ----------
+   "RusWrite" viết bằng font chữ ký Parisienne — cảm giác ngòi bút trên giấy
+   cao cấp, không phải sans-serif của startup. "AI" nhỏ, chữ hoa thưa,
+   đứng như một dấu triện. Nét gạch chân là một đường bút thật, vẽ bằng SVG. */
+.brand{display:flex;align-items:center;gap:.6rem;flex-shrink:0;}
+.logo{display:block;text-decoration:none;line-height:1;}
+.logo-row{display:flex;align-items:baseline;gap:.4rem;}
+.logo-sig{
+    font-family:'Parisienne',cursive;
+    font-size:2rem;line-height:.9;color:var(--blue);
+    letter-spacing:.01em;padding-right:.05em;
+}
+.logo-ai{
+    font-family:'Nunito',sans-serif;font-size:.62rem;font-weight:800;
+    letter-spacing:.22em;text-transform:uppercase;color:var(--gold-deep);
+    transform:translateY(-.35em);
+}
+.logo-rule{display:block;width:118px;height:7px;margin-top:-2px;color:var(--gold);}
+.brand-sub{font-size:.7rem;color:var(--ink-faint);margin-top:.15rem;font-family:'Lora',serif;font-style:italic;letter-spacing:.01em;}
+
+/* ---------- НАВИГАЦИЯ — gọn, không trang trí ---------- */
+.viewnav{display:flex;gap:.15rem;margin-left:1rem;padding:3px;background:var(--cream);border-radius:var(--r-sm);border:var(--bd);}
+.nav-item{
+    display:flex;align-items:center;gap:.45rem;height:30px;padding:0 .8rem;
+    background:transparent;border:0;cursor:pointer;color:var(--ink-soft);
+    font-family:inherit;font-weight:700;font-size:.82rem;border-radius:7px;
+    transition:background var(--t-fast),color var(--t-fast);
+}
+.nav-item:hover{color:var(--blue);}
+.nav-item.active{color:var(--blue);background:var(--snow);box-shadow:var(--sh-sm);}
+.nav-item:focus-visible{outline:2px solid var(--blue-lt);outline-offset:1px;}
+.nav-ico{width:17px;height:17px;flex-shrink:0;}
+
+.appbar-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+.level-badge{
+    display:flex;align-items:center;gap:.5rem;cursor:pointer;text-align:left;
+    background:var(--snow);border:var(--bd);padding:.25rem .75rem .25rem .35rem;
+    border-radius:var(--r-sm);box-shadow:var(--sh-sm);
+    transition:border-color var(--t-fast),background var(--t-fast);
+}
+.level-badge:hover{border-color:var(--blue-lt);background:var(--blue-pale);}
+.level-badge:focus-visible{outline:2px solid var(--blue-lt);outline-offset:2px;}
+.level-badge-label{font-size:.6rem;color:var(--ink-faint);line-height:1;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+.level-badge-value{font-size:.82rem;font-weight:800;color:var(--blue);line-height:1.3;}
+.flag-thread{height:2px;width:100%;margin-top:3px;border-radius:2px;
+    background:linear-gradient(90deg,#fff 0 33%,var(--blue) 33% 66%,var(--red) 66%);}
+
+.avatar{
+    width:40px;height:40px;border-radius:99px;display:grid;place-items:center;
+    background:linear-gradient(160deg,var(--gold),var(--coral));color:#fff;
+    font-weight:800;font-size:1rem;text-transform:uppercase;border:3px solid #fff;box-shadow:var(--sh-sm);
+}
+.acct{display:flex;align-items:center;gap:.6rem;}
+.acct-mail{font-size:.8rem;font-weight:700;color:var(--ink);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.link-quiet{background:none;border:0;cursor:pointer;color:var(--ink-faint);font-size:.72rem;font-weight:700;padding:0;}
+.link-quiet:hover{color:var(--red);text-decoration:underline;}
+.icon-btn{display:none;background:#fff;border:2px solid var(--line);color:var(--blue);
+    width:42px;height:42px;border-radius:14px;cursor:pointer;align-items:center;justify-content:center;box-shadow:var(--sh-sm);}
+
+/* ==========================================================================
+   DẢI HÀNH TRÌNH — con đường qua sáu miền đất
+   ========================================================================== */
+.journey{
+    position:relative;z-index:2;
+    background:linear-gradient(180deg,var(--snow),var(--ivory));
+    border-bottom:2px solid var(--line);
+    padding:.85rem clamp(.75rem,3vw,2rem) .7rem;
+    overflow-x:auto;
+}
+.journey-rail{display:flex;align-items:flex-end;min-width:720px;}
+.station{
+    position:relative;flex:1;background:transparent;border:0;cursor:pointer;
+    padding:.3rem .2rem;display:flex;flex-direction:column;align-items:center;gap:.3rem;
+}
+/* con đường lát đá nối các miền */
+.station::before{
+    content:'';position:absolute;left:-50%;right:50%;top:28px;height:3px;border-radius:99px;
+    background:repeating-linear-gradient(90deg,var(--sky-deep) 0 9px,transparent 9px 15px);
+}
+.station:first-child::before{display:none;}
+.station.done::before{background:repeating-linear-gradient(90deg,var(--gold) 0 9px,transparent 9px 15px);}
+.station.current::before{background:repeating-linear-gradient(90deg,var(--gold) 0 9px,transparent 9px 15px);}
+/* ---------- ОВАЛЬНАЯ СЦЕНА — chuẩn dùng chung cho cả 6 miền ----------
+   Mọi minh hoạ miền đất đều đi qua container này. Tỷ lệ 5/3 khớp CHÍNH XÁC
+   với viewBox "0 0 120 72" của landSVG, nên hình không bao giờ bị cắt, bị méo
+   hay thừa khoảng trắng — và cả 6 cấp độ luôn cùng một tỷ lệ. */
+.scene-oval{
+    position:relative;display:block;width:100%;aspect-ratio:5/3;
+    overflow:hidden;border-radius:50% / 42%;
+    background:var(--sky);line-height:0;isolation:isolate;
+}
+.scene-oval > svg{display:block;width:100%;height:100%;}
+
+.station-scene{
+    position:relative;z-index:1;width:74px;padding:3px;background:var(--snow);
+    border:1px solid var(--line-blue);border-radius:50% / 42%;
+    transition:transform var(--t),border-color var(--t);line-height:0;
+}
+.station:hover .station-scene{transform:translateY(-3px);border-color:var(--gold);}
+.station.future .station-scene{filter:grayscale(.8);opacity:.55;}
+.station.done .station-scene{border-color:var(--gold);}
+.station.current .station-scene{border-color:var(--gold);box-shadow:0 0 0 3px rgba(242,181,68,.28);}
+.station-name{font-size:.7rem;font-weight:800;color:var(--ink-faint);white-space:nowrap;}
+.station.current .station-name{color:var(--gold-deep);}
+.station.done .station-name{color:var(--ink-soft);}
+.station-here{font-size:.6rem;font-weight:800;color:#6B4A05;background:var(--gold);padding:.1rem .5rem;border-radius:99px;}
+
+/* ==========================================================================
+   BỐ CỤC
+   ========================================================================== */
+main{flex:1;min-height:0;display:flex;flex-direction:column;position:relative;z-index:2;}
+.workspace{flex:1;min-height:0;display:flex;overflow:hidden;}
+
+/* ---------- Ngăn kéo trái: bảng nhiệm vụ ---------- */
+.drawer{
+    width:300px;flex-shrink:0;overflow-y:auto;padding:1.4rem 1rem 3rem;
+    background:linear-gradient(180deg,var(--snow),var(--ivory));
+    border-right:2px solid var(--line);
+    transition:margin-left .35s var(--ease);
+}
+.drawer.collapsed{margin-left:-300px;}
+.drawer-title{
+    display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;
+    font-size:.9rem;font-weight:800;color:var(--blue);font-family:'Nunito',sans-serif;
+}
+.drawer-title .ti{width:22px;height:22px;flex-shrink:0;}
+.drawer-section + .drawer-section{margin-top:1.9rem;}
+
+/* Thẻ nhiệm vụ — như một tấm thiệp giấy có góc gập */
+.quest{
+    position:relative;width:100%;text-align:left;cursor:pointer;overflow:hidden;
+    background:var(--snow);border:2px solid var(--line);border-radius:var(--r-sm);
+    padding:.85rem .9rem;margin-bottom:.6rem;box-shadow:var(--sh-sm);
+    transition:all .22s var(--ease);
+}
+.quest::after{ /* góc gập kiểu bookmark */
+    content:'';position:absolute;top:0;right:0;width:0;height:0;
+    border-style:solid;border-width:0 22px 22px 0;border-color:transparent var(--sky-deep) transparent transparent;
+    transition:border-color .22s;
+}
+.quest:hover{transform:translateX(4px);border-color:var(--blue-lt);box-shadow:var(--sh-md);}
+.quest:hover::after{border-right-color:var(--gold);}
+.quest-title{font-size:.86rem;font-weight:700;color:var(--ink);line-height:1.45;padding-right:1rem;}
+.quest-meta{font-size:.7rem;color:var(--ink-faint);margin-top:.4rem;display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;}
+.tag{font-size:.66rem;font-weight:800;color:var(--gold-deep);background:rgba(242,181,68,.18);padding:.14rem .55rem;border-radius:99px;}
+.tag-blue{color:var(--blue);background:var(--blue-pale);}
+.hint{font-size:.8rem;color:var(--ink-faint);line-height:1.65;padding:.2rem;font-style:italic;}
+
+/* ==========================================================================
+   PHÒNG VIẾT
+   ========================================================================== */
+.stage{flex:1;min-width:0;overflow-y:auto;padding:clamp(1rem,2.5vw,2rem) clamp(1rem,3vw,2.5rem) 4rem;}
+.stage-inner{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:1.15rem;}
+
+/* Lời chào + cảnh miền đất hiện tại */
+.welcome{
+    position:relative;display:flex;align-items:center;gap:1.1rem;overflow:hidden;
+    background:linear-gradient(120deg,var(--snow),var(--sky));
+    border:2px solid var(--line-blue);border-radius:var(--r-lg);
+    padding:1.1rem 1.35rem;box-shadow:var(--sh-sm);
+}
+.welcome-scene{position:absolute;right:-10px;bottom:-6px;opacity:.9;pointer-events:none;}
+.welcome-txt{position:relative;z-index:1;max-width:64%;}
+.welcome-txt h2{margin:0 0 .25rem;font-size:1.3rem;color:var(--blue);line-height:1.3;}
+.welcome-txt p{margin:0;font-size:.85rem;color:var(--ink-soft);line-height:1.6;}
+
+/* Đề bài đang chọn */
+.assignment{
+    display:none;position:relative;overflow:hidden;
+    background:var(--snow);border:2px solid var(--gold);border-radius:var(--r-md);
+    padding:1.1rem 1.3rem;box-shadow:var(--sh-md);
+}
+.assignment.show{display:block;}
+.assignment::before{ /* dải hoa văn Khokhloma dọc mép trái */
+    content:'';position:absolute;left:0;top:0;bottom:0;width:8px;
+    background:linear-gradient(180deg,var(--gold),var(--coral),var(--red));
+}
+.assignment-eyebrow{font-size:.7rem;font-weight:800;color:var(--gold-deep);margin-bottom:.3rem;}
+.assignment h3{margin:0;font-size:1.25rem;color:var(--ink);line-height:1.3;}
+.assignment-text{margin:.5rem 0 0;font-family:'Lora',serif;font-size:1rem;line-height:1.7;color:var(--ink-soft);}
+
+.self-topic{display:flex;flex-direction:column;gap:.4rem;}
+.self-topic label{font-size:.8rem;color:var(--ink-soft);font-weight:700;}
+.field{
+    width:100%;background:var(--snow);border:2px solid var(--line);color:var(--ink);
+    border-radius:var(--r-sm);padding:.8rem 1rem;font-size:.92rem;font-family:inherit;font-weight:600;
+    transition:border-color .2s,box-shadow .2s;
+}
+.field::placeholder{color:var(--ink-faint);font-weight:400;}
+.field:focus{outline:none;border-color:var(--blue-lt);box-shadow:0 0 0 4px var(--blue-pale);}
+
+/* --- Bàn viết: trang giấy có góc trang trí --- */
+.desk{position:relative;}
+.desk-shelf{position:absolute;left:-72px;bottom:0;opacity:.4;pointer-events:none;}
+.paper{
+    position:relative;background:var(--snow);border-radius:var(--r-md);
+    border:2px solid var(--line);box-shadow:var(--sh-lg);overflow:hidden;
+}
+.paper::after{ /* lề đỏ + dòng kẻ rất nhạt */
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background-image:
+        linear-gradient(90deg,transparent calc(3.4rem - 1px),rgba(212,80,106,.28) 3.4rem,transparent calc(3.4rem + 1px));
+}
+.paper-corner{position:absolute;pointer-events:none;opacity:.5;}
+.paper-corner.tr{top:52px;right:8px;}
+.paper-corner.bl{bottom:8px;left:8px;transform:scaleX(-1);}
+.paper-head{
+    position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;
+    gap:1rem;flex-wrap:wrap;padding:.8rem 1.2rem;
+    border-bottom:2px solid var(--line);background:linear-gradient(180deg,var(--cream),var(--snow));
+}
+.paper-title{margin:0;font-size:1.02rem;color:var(--ink);display:flex;align-items:center;gap:.5rem;}
+.paper-actions{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;}
+.wordcount{
+    font-size:.78rem;font-weight:800;color:var(--blue);background:var(--blue-pale);
+    padding:.42rem .8rem;border-radius:99px;font-variant-numeric:tabular-nums;
+}
+#editor-content{
+    position:relative;z-index:2;padding:2rem 2rem 2.5rem 4.9rem;min-height:340px;outline:none;
+    font-family:'Lora',Georgia,serif;font-size:1.16rem;line-height:2;color:var(--ink);
+}
+#editor-content:empty:before{content:attr(placeholder);color:var(--ink-faint);font-style:italic;}
+#editor-content:focus{background:linear-gradient(180deg,rgba(234,244,253,.35),transparent 220px);}
+
+/* ==========================================================================
+   MENTOR — Мишка nói
+   ========================================================================== */
+.mentor{
+    background:var(--snow);border:2px solid var(--line-blue);
+    border-radius:var(--r-md);overflow:hidden;box-shadow:var(--sh-md);
+}
+.mentor-head{
+    display:flex;align-items:center;gap:.9rem;padding:.9rem 1.2rem;
+    background:linear-gradient(120deg,var(--sky),var(--snow));border-bottom:2px solid var(--line-blue);
+}
+.mentor-name{font-size:1rem;font-weight:800;color:var(--blue);}
+.mentor-role{font-size:.74rem;color:var(--ink-soft);}
+.tabs{display:flex;gap:.35rem;padding:.6rem .8rem 0;overflow-x:auto;background:var(--ivory);border-bottom:2px solid var(--line);}
+.tab-btn{
+    background:transparent;border:2px solid transparent;border-bottom:0;cursor:pointer;white-space:nowrap;
+    color:var(--ink-soft);font-weight:700;font-size:.84rem;padding:.55rem .9rem;
+    border-radius:var(--r-sm) var(--r-sm) 0 0;transition:all .2s var(--ease);
+}
+.tab-btn:hover{color:var(--blue);background:var(--blue-pale);}
+.tab-btn.active{color:var(--blue);background:var(--snow);border-color:var(--line);margin-bottom:-2px;padding-bottom:.65rem;}
+.tab-body{padding:1.4rem;min-height:220px;background:var(--snow);}
+.tab-panel.hidden{display:none;}
+
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:.55rem;padding:1rem;}
+.empty strong{font-family:'Lora',serif;font-size:1.2rem;color:var(--ink);font-weight:600;}
+.empty p{margin:0;color:var(--ink-soft);font-size:.9rem;max-width:46ch;line-height:1.7;}
+.thinking-line{font-family:'Lora',serif;font-style:italic;font-size:1.05rem;color:var(--blue);min-height:1.6em;transition:opacity .2s;}
+.thinking-dots span{display:inline-block;width:7px;height:7px;margin:0 3px;border-radius:99px;background:var(--gold);animation:bob 1.1s infinite;}
+.thinking-dots span:nth-child(2){animation-delay:.15s;background:var(--coral);}
+.thinking-dots span:nth-child(3){animation-delay:.3s;background:var(--blue-lt);}
+@keyframes bob{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-7px);opacity:1;}}
+
+/* ---------- Bảng điểm ---------- */
+.verdict{
+    position:relative;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    background:linear-gradient(120deg,var(--cream),var(--snow));
+    border:2px solid var(--gold);border-radius:var(--r-md);padding:1.1rem 1.3rem;margin-bottom:1.1rem;overflow:hidden;
+}
+.verdict-firebird{position:absolute;right:-6px;top:-8px;opacity:.9;pointer-events:none;}
+.verdict-score{font-family:'Lora',serif;font-size:2.6rem;font-weight:700;color:var(--blue);line-height:1;}
+.verdict-score small{font-size:1.05rem;color:var(--ink-faint);font-weight:400;}
+.verdict-label{font-size:.76rem;color:var(--ink-soft);margin-top:.3rem;font-weight:700;}
+.pill{font-size:.76rem;font-weight:800;padding:.4rem .9rem;border-radius:99px;border:2px solid;position:relative;z-index:1;}
+.pill-ok{color:#37734B;background:rgba(90,158,111,.16);border-color:rgba(90,158,111,.45);}
+.pill-warn{color:var(--red-deep);background:rgba(212,80,106,.13);border-color:rgba(212,80,106,.4);}
+
+.crit{margin-bottom:1.05rem;}
+.crit-head{display:flex;justify-content:space-between;align-items:baseline;gap:.75rem;margin-bottom:.4rem;}
+.crit-name{font-size:.88rem;font-weight:700;color:var(--ink);}
+.crit-cap{font-size:.7rem;color:var(--red);font-weight:800;}
+.crit-val{font-size:.92rem;font-weight:800;color:var(--blue);font-variant-numeric:tabular-nums;}
+.bar{height:10px;border-radius:99px;background:var(--sky-deep);overflow:hidden;}
+.bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--coral));transition:width 1s var(--ease);}
+.crit-note{font-size:.82rem;color:var(--ink-soft);margin:.45rem 0 0;line-height:1.65;}
+
+.ledger{list-style:none;margin:0;padding:0;font-size:.85rem;color:var(--ink-soft);}
+.ledger li{display:flex;justify-content:space-between;gap:1rem;padding:.55rem .2rem;border-bottom:2px dotted var(--line);}
+.ledger li:last-child{border-bottom:0;}
+.ledger b{color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.section-h{font-family:'Lora',serif;font-size:1.15rem;color:var(--blue);margin:1.5rem 0 .8rem;font-weight:600;}
+
+/* ---------- Lỗi ---------- */
+.errs{list-style:none;margin:0;padding:0;}
+.err{
+    background:var(--ivory);border:2px solid var(--line);border-left:5px solid var(--red);
+    border-radius:var(--r-sm);padding:.95rem 1.1rem;margin-bottom:.75rem;
+}
+.err.knzo{border-left-color:var(--gold);}
+.err-line{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin-bottom:.55rem;}
+.was{font-family:'Lora',serif;color:var(--red-deep);text-decoration:line-through;text-decoration-color:rgba(212,80,106,.5);font-size:1.05rem;}
+.arrow{color:var(--ink-faint);font-weight:800;}
+.now{font-family:'Lora',serif;color:#37734B;font-weight:700;font-size:1.08rem;}
+.chip{font-size:.68rem;font-weight:800;padding:.2rem .65rem;border-radius:99px;border:2px solid;}
+.chip-type{color:var(--blue);border-color:var(--line-blue);background:var(--blue-pale);}
+.chip-kzo{color:var(--red-deep);border-color:rgba(212,80,106,.35);background:rgba(212,80,106,.12);}
+.chip-knzo{color:var(--gold-deep);border-color:rgba(242,181,68,.5);background:rgba(242,181,68,.16);}
+.err-why{font-size:.88rem;color:var(--ink);line-height:1.75;margin:0;}
+.err-tip{
+    display:flex;gap:.55rem;margin:.7rem 0 0;padding:.65rem .85rem;border-radius:var(--r-sm);
+    background:rgba(90,158,111,.1);border:2px solid rgba(90,158,111,.28);
+    font-size:.84rem;color:#37734B;line-height:1.65;font-weight:600;
+}
+
+/* ---------- Dàn ý ---------- */
+.outline-h{
+    display:flex;align-items:center;gap:.5rem;font-family:'Lora',serif;font-size:1.05rem;
+    color:var(--blue);margin:1.3rem 0 .6rem;
+}
+.outline-h:first-child{margin-top:0;}
+.outline-h .num{
+    width:26px;height:26px;border-radius:99px;background:var(--blue-pale);color:var(--blue);
+    display:grid;place-items:center;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:800;flex-shrink:0;
+}
+.idea-list{margin:0;padding-left:1.3rem;color:var(--ink);font-size:.92rem;line-height:1.95;}
+.idea-list li::marker{color:var(--coral);}
+.point{background:var(--ivory);border:2px solid var(--line);border-radius:var(--r-sm);padding:.9rem 1.05rem;margin-bottom:.6rem;}
+.point-n{font-family:'Lora',serif;font-size:1.05rem;color:var(--ink);margin:0 0 .5rem;}
+.point-n em{color:var(--coral);font-style:normal;font-weight:700;margin-right:.4rem;}
+.point-meta{font-size:.82rem;color:var(--ink-soft);margin:.28rem 0 0;line-height:1.65;}
+.point-meta b{color:var(--blue);font-weight:800;}
+.advice{
+    display:flex;gap:.6rem;margin-top:1rem;padding:.9rem 1rem;border-radius:var(--r-sm);
+    background:rgba(242,181,68,.13);border:2px solid rgba(242,181,68,.42);
+    font-size:.88rem;color:#7A5406;line-height:1.7;font-weight:600;
+}
+.note-fine{font-size:.8rem;color:var(--ink-faint);font-style:italic;margin-top:.85rem;}
+.vocab-wrap{display:flex;flex-wrap:wrap;gap:.55rem;}
+.vocab{
+    font-family:'Lora',serif;font-size:1rem;color:var(--blue);background:var(--snow);
+    border:2px solid var(--line-blue);padding:.42rem 1rem;border-radius:99px;box-shadow:var(--sh-sm);
+    transition:transform .2s var(--bounce),border-color .2s;
+}
+.vocab:hover{transform:translateY(-3px);border-color:var(--gold);}
+.reqs{list-style:none;margin:0;padding:0;}
+.reqs li{display:flex;gap:.6rem;padding:.5rem 0;font-size:.88rem;color:var(--ink);line-height:1.65;}
+.reqs .mark{flex-shrink:0;}
+
+
+/* ---------- Túi từ vựng: mỗi từ là một nút học tập ---------- */
+.vocab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.7rem;}
+.vocab-card{
+    text-align:left;cursor:pointer;background:var(--snow);border:2px solid var(--line-blue);
+    border-radius:var(--r-sm);padding:.75rem .9rem;box-shadow:var(--sh-sm);
+    transition:transform .2s var(--bounce),border-color .2s,box-shadow .2s;
+}
+.vocab-card:hover,.vocab-card:focus-visible{transform:translateY(-4px);border-color:var(--gold);box-shadow:var(--sh-md);outline:none;}
+.vocab-card:hover .vocab-open{opacity:1;}
+.vocab-term{font-family:'Lora',serif;font-size:1.02rem;color:var(--blue);font-weight:600;line-height:1.35;}
+.vocab-sub{font-size:.76rem;color:var(--ink-soft);margin-top:.28rem;line-height:1.5;}
+.vocab-row{display:flex;align-items:center;gap:.4rem;margin-top:.45rem;flex-wrap:wrap;}
+.vocab-open{font-size:.7rem;color:var(--coral);font-weight:800;opacity:.55;transition:opacity .2s;margin-left:auto;}
+.lvl-chip{font-size:.66rem;font-weight:800;padding:.14rem .5rem;border-radius:99px;background:var(--blue-pale);color:var(--blue);border:1.5px solid var(--line-blue);}
+.lvl-chip.up{background:rgba(242,181,68,.18);color:var(--gold-deep);border-color:rgba(242,181,68,.5);}
+.vocab-group-h{font-size:.78rem;font-weight:800;color:var(--ink-soft);margin:1.2rem 0 .5rem;letter-spacing:.02em;}
+.vocab-group-h:first-child{margin-top:0;}
+
+/* ---------- Ngăn kéo chi tiết từ vựng ---------- */
+.vdrawer-scrim{position:fixed;inset:0;z-index:70;display:none;background:rgba(42,58,87,.4);backdrop-filter:blur(4px);}
+.vdrawer-scrim.open{display:block;animation:fade .2s var(--ease);}
+.vdrawer{
+    position:fixed;top:0;right:0;bottom:0;z-index:71;width:min(460px,100%);
+    background:var(--ivory);border-left:3px solid var(--snow);box-shadow:var(--sh-lg);
+    transform:translateX(100%);transition:transform .32s var(--ease);
+    display:flex;flex-direction:column;
+}
+.vdrawer.open{transform:none;}
+.vdrawer-head{
+    display:flex;align-items:flex-start;gap:.75rem;padding:1.1rem 1.2rem .9rem;
+    background:linear-gradient(180deg,var(--sky),var(--ivory));border-bottom:2px solid var(--line);
+}
+.vdrawer-head h3{margin:0;font-family:'Lora',serif;font-size:1.4rem;color:var(--blue);line-height:1.3;}
+.vdrawer-close{
+    margin-left:auto;flex-shrink:0;cursor:pointer;border:2px solid var(--line);background:var(--snow);
+    width:34px;height:34px;border-radius:99px;color:var(--ink-soft);font-size:1.1rem;line-height:1;
+}
+.vdrawer-close:hover{border-color:var(--red);color:var(--red);}
+.vdrawer-body{padding:1.1rem 1.2rem 2rem;overflow-y:auto;flex:1;}
+.vd-sec{margin-bottom:1.15rem;}
+.vd-h{font-size:.74rem;font-weight:800;color:var(--coral);letter-spacing:.06em;text-transform:uppercase;margin:0 0 .4rem;}
+.vd-p{margin:0;font-size:.9rem;color:var(--ink);line-height:1.75;}
+.vd-vi{margin:.3rem 0 0;font-size:.83rem;color:var(--ink-soft);font-style:italic;}
+.vd-pron{font-family:'Lora',serif;font-size:1.15rem;color:var(--blue);font-weight:600;}
+.vd-list{margin:0;padding-left:1.15rem;font-size:.9rem;color:var(--ink);line-height:1.85;}
+.vd-list li::marker{color:var(--gold-deep);}
+.vd-ex{background:var(--snow);border:2px solid var(--line-blue);border-radius:var(--r-sm);padding:.7rem .85rem;margin-bottom:.5rem;}
+.vd-ex-ru{font-family:'Lora',serif;font-size:.98rem;color:var(--ink);line-height:1.6;margin:0;}
+.vd-ex-vi{font-size:.8rem;color:var(--ink-soft);margin:.3rem 0 0;}
+.vd-forms{display:flex;flex-wrap:wrap;gap:.4rem;}
+.vd-form{font-size:.78rem;background:var(--cream);border:2px solid var(--line);border-radius:99px;padding:.2rem .65rem;color:var(--ink);}
+.vd-form b{color:var(--blue);font-weight:800;}
+.vd-meta{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;}
+
+/* ---------- Nhận xét tổng quan (tiếng Nga) ---------- */
+.fb-block{background:var(--snow);border:2px solid var(--line);border-radius:var(--r-sm);padding:.95rem 1.1rem;margin-bottom:.75rem;}
+.fb-block.warn{border-color:rgba(212,80,106,.35);background:rgba(212,80,106,.06);}
+.fb-block.good{border-color:rgba(90,158,111,.35);background:rgba(90,158,111,.07);}
+.fb-h{font-size:.76rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 .5rem;}
+.fb-ru{font-family:'Lora',serif;font-size:.98rem;color:var(--ink);line-height:1.8;margin:0;}
+.fb-list{margin:0;padding-left:1.2rem;font-size:.9rem;color:var(--ink);line-height:1.8;}
+.fb-list li{margin-bottom:.25rem;}
+.fb-steps{counter-reset:st;list-style:none;margin:0;padding:0;}
+.fb-steps li{position:relative;padding-left:2rem;margin-bottom:.55rem;font-size:.92rem;line-height:1.7;color:var(--ink);}
+.fb-steps li::before{
+    counter-increment:st;content:counter(st);position:absolute;left:0;top:.05rem;
+    width:22px;height:22px;border-radius:99px;background:var(--coral);color:#fff;
+    display:grid;place-items:center;font-size:.72rem;font-weight:800;
+}
+.cov{display:flex;gap:.55rem;padding:.55rem 0;border-bottom:2px dotted var(--line);font-size:.88rem;line-height:1.65;}
+.cov:last-child{border-bottom:0;}
+.cov-mark{flex-shrink:0;font-size:1rem;}
+.cov b{color:var(--blue);}
+.cov small{display:block;color:var(--ink-soft);font-size:.82rem;margin-top:.15rem;}
+
+/* ---------- Gợi ý nâng cấp cách diễn đạt (không phải lỗi) ---------- */
+.upg{
+    background:var(--snow);border:2px solid var(--line-blue);border-left:5px solid var(--blue-lt);
+    border-radius:var(--r-sm);padding:.85rem 1rem;margin-bottom:.65rem;
+}
+.upg-line{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.45rem;}
+.upg-from{font-family:'Lora',serif;color:var(--ink-soft);font-size:1rem;}
+.upg-to{font-family:'Lora',serif;color:var(--blue);font-weight:700;font-size:1.02rem;}
+.chip-upg{color:var(--blue);border-color:var(--line-blue);background:var(--blue-pale);}
+.err-alt{margin:.55rem 0 0;font-size:.85rem;color:var(--ink-soft);line-height:1.7;}
+.err-alt b{color:var(--blue);}
+.err-vi{margin:.35rem 0 0;font-size:.82rem;color:var(--ink-soft);font-style:italic;}
+
+/* ---------- Dàn ý tiếng Nga ---------- */
+.plan-sec{background:var(--ivory);border:2px solid var(--line);border-radius:var(--r-sm);padding:.9rem 1.05rem;margin-bottom:.6rem;}
+.plan-sec-h{font-family:'Lora',serif;font-size:1.02rem;color:var(--ink);margin:0 0 .5rem;display:flex;gap:.5rem;align-items:baseline;}
+.plan-sec-h em{color:var(--coral);font-style:normal;font-weight:700;}
+.plan-points{margin:0;padding-left:1.2rem;font-size:.93rem;color:var(--ink);line-height:1.9;}
+.plan-points li::marker{color:var(--gold-deep);}
+.plan-gram{font-size:.8rem;color:var(--ink-soft);margin:.5rem 0 0;line-height:1.6;}
+.plan-gram b{color:var(--blue);font-weight:800;}
+.pattern{background:var(--cream);border:2px dashed rgba(242,181,68,.55);border-radius:var(--r-sm);padding:.6rem .85rem;margin-bottom:.45rem;}
+.pattern-ru{font-family:'Lora',serif;font-size:.96rem;color:var(--ink);margin:0;}
+.pattern-why{font-size:.78rem;color:var(--ink-soft);margin:.22rem 0 0;}
+.gram-card{background:var(--snow);border:2px solid var(--line-blue);border-radius:var(--r-sm);padding:.75rem .9rem;margin-bottom:.5rem;}
+.gram-name{font-weight:800;color:var(--blue);font-size:.92rem;}
+.gram-why{font-size:.85rem;color:var(--ink);margin:.3rem 0 0;line-height:1.7;}
+.gram-ex{font-family:'Lora',serif;font-size:.92rem;color:var(--ink-soft);margin:.35rem 0 0;font-style:italic;}
+.level-note{
+    display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;padding:.6rem .9rem;
+    background:var(--blue-pale);border:2px solid var(--line-blue);border-radius:99px;
+    font-size:.82rem;color:var(--blue);font-weight:700;
+}
+
+/* ==========================================================================
+   THƯ VIỆN
+   ========================================================================== */
+.lib{flex:1;overflow-y:auto;padding:0 0 4rem;}
+.lib-hero{
+    position:relative;overflow:hidden;text-align:center;
+    background:linear-gradient(180deg,var(--sky),var(--ivory));
+    border-bottom:2px solid var(--line);padding:2rem 1rem 0;
+}
+.lib-hero-txt{position:relative;z-index:2;max-width:640px;margin:0 auto;}
+.lib-hero h2{font-size:clamp(1.8rem,4vw,2.6rem);color:var(--blue);margin:.7rem 0 .5rem;line-height:1.2;}
+.lib-hero p{color:var(--ink-soft);margin:0 auto;font-size:.98rem;line-height:1.75;max-width:52ch;}
+.lib-hero-art{display:block;width:100%;margin-top:-10px;}
+.lib-inner{max-width:1140px;margin:0 auto;padding:0 clamp(1rem,3vw,2rem);}
+.filters{display:flex;flex-wrap:wrap;gap:.7rem;align-items:center;justify-content:center;margin:1.75rem 0 2rem;}
+.select{
+    background:var(--snow);border:2px solid var(--line);color:var(--ink);
+    padding:.6rem 1.1rem;border-radius:99px;font-family:inherit;font-size:.88rem;font-weight:700;
+    cursor:pointer;box-shadow:var(--sh-sm);
+}
+.select:focus{outline:none;border-color:var(--blue-lt);}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.4rem;}
+/* Thẻ tài liệu = cuốn sách có gáy */
+.book{
+    position:relative;display:flex;flex-direction:column;overflow:hidden;
+    background:var(--snow);border:2px solid var(--line);border-radius:6px var(--r-md) var(--r-md) 6px;
+    padding:1.3rem 1.25rem 1.2rem 1.6rem;box-shadow:var(--sh-md);
+    transition:transform .25s var(--ease),box-shadow .25s,border-color .25s;
+}
+.book::before{ /* gáy sách */
+    content:'';position:absolute;left:0;top:0;bottom:0;width:11px;
+    background:linear-gradient(180deg,var(--blue-lt),var(--blue));
+}
+.book::after{ /* đường chỉ vàng trên gáy */
+    content:'';position:absolute;left:3px;top:16px;bottom:16px;width:2px;background:rgba(255,255,255,.55);
+}
+.book:nth-child(4n+2)::before{background:linear-gradient(180deg,var(--coral),var(--red));}
+.book:nth-child(4n+3)::before{background:linear-gradient(180deg,#7DBF92,var(--green));}
+.book:nth-child(4n+4)::before{background:linear-gradient(180deg,#B5A6DA,var(--lav));}
+.book:hover{transform:translateY(-7px) rotate(-.5deg);box-shadow:var(--sh-lg);border-color:var(--gold);}
+.book-meta{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.6rem;}
+.book h3{font-size:1.18rem;color:var(--ink);margin:0 0 .5rem;line-height:1.35;}
+.book p{font-size:.86rem;color:var(--ink-soft);line-height:1.75;margin:0 0 1.1rem;flex:1;}
+.book-link{
+    align-self:flex-start;display:inline-flex;align-items:center;gap:.4rem;text-decoration:none;
+    font-size:.84rem;font-weight:800;color:#fff;background:var(--blue);
+    padding:.5rem 1.05rem;border-radius:99px;transition:all .2s var(--bounce); border: none; cursor: pointer;
+}
+.book-link:hover{background:var(--blue-lt);transform:translateY(-2px);}
+
+/* ==========================================================================
+   MODAL
+   ========================================================================== */
+.scrim{
+    position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:1rem;
+    background:rgba(42,58,87,.45);backdrop-filter:blur(6px);
+}
+.scrim.open{display:flex;animation:fade .25s var(--ease);}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{
+    position:relative;width:100%;max-height:92vh;overflow-y:auto;background:var(--ivory);
+    border:3px solid var(--snow);border-radius:var(--r-xl);box-shadow:var(--sh-lg);
+    animation:rise .4s var(--bounce);
+}
+@keyframes rise{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
+.modal-journey{max-width:1000px;padding:0 0 1.5rem;}
+.modal-auth{max-width:420px;padding:1.75rem;}
+.modal-banner{
+    position:relative;overflow:hidden;border-radius:var(--r-xl) var(--r-xl) 0 0;
+    background:linear-gradient(180deg,var(--sky),var(--ivory));padding:1.6rem clamp(1.25rem,3vw,2.25rem) 0;
+}
+.modal-lede{position:relative;z-index:2;display:flex;gap:1rem;align-items:center;max-width:640px;}
+.modal-lede h2{margin:0 0 .3rem;font-size:1.75rem;color:var(--blue);line-height:1.25;}
+.modal-lede p{margin:0;color:var(--ink-soft);font-size:.9rem;line-height:1.65;}
+.modal-banner-art{display:block;width:100%;margin-top:.5rem;}
+.map{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:.75rem;padding:1.25rem clamp(1.25rem,3vw,2.25rem) 0;}
+.level-card{
+    position:relative;cursor:pointer;text-align:center;overflow:hidden;
+    background:var(--snow);border:var(--bd);border-radius:var(--r-md);
+    padding:0 0 .9rem;display:flex;flex-direction:column;align-items:center;gap:.3rem;
+    box-shadow:var(--sh-sm);transition:all .25s var(--bounce);
+}
+.level-card:hover{transform:translateY(-3px);border-color:var(--blue-lt);box-shadow:var(--sh-md);}
+.level-card:focus-visible{outline:2px solid var(--blue-lt);outline-offset:2px;}
+.level-card.is-current{border-color:var(--gold);box-shadow:0 0 0 2px rgba(242,181,68,.3);}
+/* Minh hoạ là điểm nhìn chính — chiếm trọn phần trên, cùng tỷ lệ ở cả 6 thẻ */
+.level-card-art{width:100%;padding:.5rem .5rem 0;}
+.level-card-doll{margin-top:-20px;position:relative;z-index:1;line-height:0;}
+.level-card-code{font-size:1.15rem;font-weight:800;color:var(--blue);line-height:1;letter-spacing:.01em;}
+.level-card-land{font-family:'Lora',serif;font-size:.88rem;color:var(--ink-soft);padding:0 .5rem;line-height:1.35;}
+.level-card-now{position:absolute;top:.5rem;right:.5rem;z-index:2;font-size:.6rem;font-weight:800;color:#5C3F06;background:var(--gold);padding:.1rem .45rem;border-radius:var(--r-pill);}
+
+.auth-head{text-align:center;margin-bottom:1.25rem;}
+.auth-head h2{margin:.5rem 0 .3rem;font-size:1.5rem;color:var(--blue);}
+.auth-head p{margin:0;color:var(--ink-soft);font-size:.86rem;line-height:1.6;}
+.auth-field{
+    width:100%;background:var(--snow);border:2px solid var(--line);color:var(--ink);
+    border-radius:var(--r-sm);padding:.85rem 1rem;font-size:.92rem;font-family:inherit;font-weight:600;
+    margin-bottom:.75rem;transition:border-color .2s,box-shadow .2s;
+}
+.auth-field::placeholder{color:var(--ink-faint);font-weight:400;}
+.auth-field:focus{outline:none;border-color:var(--blue-lt);box-shadow:0 0 0 4px var(--blue-pale);}
+.auth-row{display:flex;gap:.6rem;margin-top:.35rem;}
+.auth-row .btn{flex:1;}
+.msg{font-size:.85rem;text-align:center;margin:1rem 0 0;font-weight:700;line-height:1.6;}
+.msg.err{color:var(--red-deep);}
+.msg.ok{color:#37734B;}
+.msg.wait{color:var(--blue);}
+.center-btn{display:block;margin:1.25rem auto 0;}
+
+/* ---------- Chuyển động ---------- */
+@keyframes enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.enter{animation:enter .5s var(--ease) both;}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+.bear-eye{transform-origin:center;animation:blink 5s infinite;}
+@keyframes wave{0%,100%{transform:rotate(0)}25%{transform:rotate(-16deg)}75%{transform:rotate(10deg)}}
+.bear-wave{transform-origin:78% 82%;animation:wave 2.4s ease-in-out infinite;}
+@keyframes nod{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.bear-read{transform-origin:50% 88%;animation:nod 2.8s ease-in-out infinite;}
+@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.bear-hop{animation:hop 1.5s ease-in-out infinite;}
+@keyframes drift{0%,100%{transform:translateX(0)}50%{transform:translateX(16px)}}
+.cloud-drift{animation:drift 14s ease-in-out infinite;}
+@keyframes flap{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-4deg)}}
+.bird-flap{animation:flap 3.4s ease-in-out infinite;}
+
+@media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;}
+    .snowfall{display:none;}
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1024px){
+    .drawer{position:fixed;top:0;left:0;bottom:0;z-index:50;width:300px;padding-top:1.2rem;box-shadow:var(--sh-lg);}
+    .drawer.collapsed{margin-left:-310px;}
+    .icon-btn{display:inline-flex;}
+    .brand-sub{display:none;}
+    .desk-shelf{display:none;}
+    .appbar-pano{opacity:.1;}
+}
+@media (max-width:720px){
+    .appbar-inner{gap:.6rem;flex-wrap:wrap;padding:.6rem 1rem;}
+    .viewnav{order:3;width:100%;margin-left:0;}
+    .nav-item{flex:1;justify-content:center;}
+    .level-badge-label{display:none;}
+    .acct-mail{display:none;}
+    .brand-name{font-size:1.2rem;}
+    .welcome-scene{opacity:.25;}
+    .welcome-txt{max-width:100%;}
+    #editor-content{padding:1.5rem 1.1rem 2rem 3.2rem;font-size:1.06rem;line-height:1.9;}
+    .paper::after{background-image:linear-gradient(90deg,transparent calc(2.2rem - 1px),rgba(212,80,106,.28) 2.2rem,transparent calc(2.2rem + 1px));}
+    .paper-corner{display:none;}
+    .paper-actions{width:100%;justify-content:space-between;}
+    .verdict-score{font-size:2.1rem;}
+    .verdict-firebird{opacity:.35;}
+    .tab-body{padding:1.1rem;}
+}
+
+/* ==========================================================================
+   ЧИТАЛКА (PDF.JS) — светлая, как настоящая книга на столе
+   Không dùng nền đen kiểu phần mềm PDF: giữ đúng tinh thần ấm sáng của sản phẩm.
+   ========================================================================== */
+#book-reader-modal{
+    position:fixed;inset:0;z-index:100;display:none;flex-direction:column;
+    background:var(--ivory);
+    opacity:0;transition:opacity .25s var(--ease);
+}
+#book-reader-modal.show{display:flex;opacity:1;}
+
+.reader-toolbar{
+    background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+    padding:.55rem clamp(.75rem,2vw,1.5rem);
+    display:flex;align-items:center;gap:.4rem;
+    border-bottom:var(--bd);z-index:110;
+}
+.reader-title{
+    font-family:'Lora',serif;font-size:.9rem;color:var(--ink);font-weight:600;
+    max-width:26ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.reader-spacer{flex:1;}
+.reader-sep{width:1px;height:20px;background:var(--line);margin:0 .35rem;}
+
+.reader-btn{
+    background:transparent;border:1px solid transparent;color:var(--ink-soft);
+    width:var(--h-ctl);height:var(--h-ctl);border-radius:var(--r-sm);
+    cursor:pointer;display:flex;justify-content:center;align-items:center;flex-shrink:0;
+    transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
+}
+.reader-btn:hover:not(:disabled){background:var(--blue-pale);color:var(--blue);border-color:var(--line-blue);}
+.reader-btn:focus-visible{outline:2px solid var(--blue-lt);outline-offset:1px;}
+.reader-btn:disabled{opacity:.32;cursor:not-allowed;}
+.reader-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.reader-btn.is-close:hover:not(:disabled){background:rgba(212,80,106,.1);color:var(--red);border-color:rgba(212,80,106,.3);}
+/* Закладка: рамка → полная заливка, когда страница сохранена */
+.reader-btn.bm-on{color:var(--gold-deep);background:rgba(242,181,68,.14);border-color:rgba(242,181,68,.45);}
+.reader-btn.bm-on svg{fill:var(--gold);stroke:var(--gold-deep);}
+
+/* Số trang bấm được để nhảy thẳng tới trang mong muốn */
+.page-box{
+    display:flex;align-items:center;gap:.3rem;height:var(--h-ctl);padding:0 .6rem;
+    border:var(--bd);border-radius:var(--r-sm);background:var(--snow);
+    font-variant-numeric:tabular-nums;font-size:.84rem;font-weight:700;color:var(--ink);
+}
+.page-jump{
+    width:3.4em;height:24px;padding:0 .25rem;text-align:center;
+    border:1px solid var(--line-blue);border-radius:6px;background:var(--cream);
+    font-family:inherit;font-size:.84rem;font-weight:800;color:var(--blue);
+    font-variant-numeric:tabular-nums;cursor:text;
+    transition:border-color var(--t-fast),background var(--t-fast);
+}
+.page-jump:hover{border-color:var(--blue-lt);}
+.page-jump:focus{outline:none;border-color:var(--blue-lt);background:var(--snow);box-shadow:0 0 0 3px var(--blue-pale);}
+.page-jump.err{border-color:var(--red);background:rgba(212,80,106,.08);color:var(--red);}
+.page-total{color:var(--ink-faint);font-weight:700;}
+
+/* Thanh nhắc "đọc tiếp" — một dòng nhỏ, không phải popup chặn đường */
+.reader-resume{
+    display:none;align-items:center;gap:.6rem;justify-content:center;
+    padding:.5rem 1rem;background:var(--cream);border-bottom:var(--bd);
+    font-size:.82rem;color:var(--ink-soft);
+}
+.reader-resume.show{display:flex;}
+
+.reader-viewport{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    overflow:auto;position:relative;padding:clamp(1rem,3vw,2.5rem) 1rem;
+    background:
+        radial-gradient(120% 80% at 50% 0%,rgba(234,244,253,.55),transparent 60%),
+        var(--ivory);
+}
+.reader-status{font-size:.9rem;color:var(--ink-soft);font-weight:600;text-align:center;}
+
+.book-wrapper{
+    display:flex;position:relative;border-radius:3px;
+    box-shadow:var(--sh-lg);
+    transition:opacity .18s var(--ease);
+}
+.book-wrapper.turning{opacity:.55;}
+/* Gáy sách: một vệt tối rất mảnh ở giữa, đủ để nhận ra là quyển sách */
+.book-wrapper::after{
+    content:'';position:absolute;top:0;bottom:0;left:50%;width:22px;
+    transform:translateX(-50%);pointer-events:none;z-index:2;
+    background:linear-gradient(90deg,transparent,rgba(42,58,87,.10) 42%,rgba(42,58,87,.16) 50%,rgba(42,58,87,.10) 58%,transparent);
+}
+.book-wrapper.single::after{display:none;}
+
+.book-page{
+    background:#FCFBF8;position:relative;overflow:hidden;
+    display:flex;justify-content:center;align-items:center;
+}
+.page-left{border-radius:3px 0 0 3px;}
+.page-right{border-radius:0 3px 3px 0;}
+.book-wrapper.single .page-right{border-radius:3px;}
+canvas.pdf-canvas{display:block;max-width:100%;height:auto;}
+
+@media (max-width:768px){
+    .page-left{display:none;}
+    .reader-title{display:none;}
+    .reader-toolbar{padding:.5rem .6rem;gap:.2rem;}
+    .reader-btn{width:34px;height:34px;}
+}
+@media (prefers-reduced-motion:reduce){
+    #book-reader-modal,.book-wrapper{transition:none;}
+}
+
+
+/* ==========================================================================
+   ДОПОЛНЕНИЯ К ПОЛИРОВКЕ
+   ========================================================================== */
+
+/* Chấm trạng thái thay cho emoji ✅🟡⬜ — sạch hơn và ăn nhập với bảng màu */
+.cov-dot{
+    flex-shrink:0;width:9px;height:9px;border-radius:50%;margin-top:.42rem;
+    border:1px solid var(--line);background:var(--snow);
+}
+.cov-dot.ok{background:var(--green);border-color:var(--green);}
+.cov-dot.half{background:var(--gold);border-color:var(--gold-deep);}
+.cov-dot.no{background:transparent;border-color:var(--ink-faint);}
+.reqs li{display:flex;gap:.55rem;align-items:flex-start;}
+
+.fb-mini{margin:.5rem 0 0;font-size:.82rem;color:var(--ink-soft);line-height:1.6;}
+.fb-mini::first-line{font-weight:700;}
+
+/* Thẻ từ vựng: chỉ 3 tầng thông tin, cấp độ nằm góc trên bên phải */
+.vocab-card{position:relative;padding:.7rem .85rem .75rem;}
+.vocab-card .lvl-chip{position:absolute;top:.55rem;right:.6rem;}
+.vocab-card .vocab-term{padding-right:2.6rem;}
+.vocab-card .vocab-sub{
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+
+/* Ngăn kéo từ vựng: giống một trang từ điển bỏ túi */
+.vdrawer-head{background:linear-gradient(180deg,var(--sky),var(--ivory));}
+.vd-h{color:var(--ink-faint);}
+
+/* Nút trong thư viện dùng chung ngôn ngữ với .btn */
+.book-link{
+    display:inline-flex;align-items:center;height:var(--h-ctl-sm);padding:0 .85rem;
+    background:var(--snow);color:var(--blue);border:1px solid var(--line-blue);
+    border-radius:var(--r-sm);font-weight:700;font-size:.8rem;text-decoration:none;
+    font-family:inherit;transition:background var(--t-fast),border-color var(--t-fast);
+}
+.book-link:hover{background:var(--blue-pale);border-color:var(--blue-lt);}
+
+/* Ô chọn dùng chung chiều cao với nút */
+.select{height:var(--h-ctl);border-radius:var(--r-sm);border:var(--bd);}
+
+/* Bớt độ dày viền chung: 2px chỉ còn dành cho trạng thái được chọn */
+.paper,.mentor,.quest,.field,.auth-field,.drawer,.appbar,.journey{border-width:1px;}
+.welcome{border-width:1px;border-radius:var(--r-md);}
+
+/* Tôn trọng người dùng tắt hiệu ứng chuyển động */
+@media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+    .snowfall{display:none;}
+}
+
+</style>
+</head>
+<body>
+<div class="snowfall" id="snowfall" aria-hidden="true"></div>
+
+<!-- ==================== ЧИТАЛКА ==================== -->
+<div id="book-reader-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Читалка">
+    <div class="reader-toolbar">
+        <button class="reader-btn is-close" onclick="closeBookReader()" title="Закрыть" aria-label="Закрыть книгу">
+            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <span id="reader-title" class="reader-title"></span>
+        <span class="reader-spacer"></span>
+
+        <button class="reader-btn" id="btn-prev" onclick="onPrevPage()" title="Назад" aria-label="Предыдущая страница">
+            <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="page-box">
+            <input id="page-num" class="page-jump" type="text" inputmode="numeric" value="0"
+                   title="Введите номер страницы" aria-label="Номер страницы">
+            <span class="page-total">/ <span id="page-count">0</span></span>
+        </div>
+        <button class="reader-btn" id="btn-next" onclick="onNextPage()" title="Вперёд" aria-label="Следующая страница">
+            <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+
+        <span class="reader-sep"></span>
+        <button class="reader-btn" id="btn-bookmark" onclick="toggleBookmark()" title="Закладка" aria-label="Добавить закладку" aria-pressed="false">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+        </button>
+
+        <span class="reader-sep"></span>
+        <button class="reader-btn" onclick="onZoomOut()" title="Уменьшить" aria-label="Уменьшить">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg>
+        </button>
+        <button class="reader-btn" onclick="onZoomIn()" title="Увеличить" aria-label="Увеличить">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6M11 8v6"/></svg>
+        </button>
+    </div>
+
+    <div id="reader-resume" class="reader-resume">
+        <span id="reader-resume-text"></span>
+        <button id="btn-resume" class="btn btn-soft btn-sm" onclick="resumeReading()">Продолжить чтение</button>
+        <button class="btn btn-plain btn-sm" onclick="dismissResume()">Не сейчас</button>
+    </div>
+
+    <div class="reader-viewport" id="reader-viewport">
+        <p id="reader-loader" class="reader-status">Открываем книгу…</p>
+        <div class="book-wrapper" id="book-wrapper" style="display:none;">
+            <div class="book-page page-left" id="page-left-container"><canvas id="pdf-canvas-left" class="pdf-canvas"></canvas></div>
+            <div class="book-page page-right" id="page-right-container"><canvas id="pdf-canvas-right" class="pdf-canvas"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== ВЫБОР УРОВНЯ ==================== -->
+<div id="level-modal" class="scrim" role="dialog" aria-modal="true" aria-labelledby="level-modal-title">
+    <div class="modal modal-journey">
+        <div class="modal-banner">
+            <div class="modal-lede">
+                <div id="modal-bear"></div>
+                <div>
+                    <h2 id="level-modal-title" class="serif">Выберите уровень</h2>
+                    <p>Изменить можно в любой момент.</p>
+                </div>
+            </div>
+            <div id="modal-banner-art" class="modal-banner-art"></div>
+        </div>
+        <div id="level-grid" class="map"></div>
+        <button id="btn-close-level" class="btn btn-plain center-btn">Позже</button>
+    </div>
+</div>
+
+<!-- ==================== АККАУНТ ==================== -->
+<div id="login-modal" class="scrim" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="modal modal-auth">
+        <div class="auth-head">
+            <div id="auth-bear" style="display:flex;justify-content:center;"></div>
+            <h2 id="auth-title" class="serif">Вход</h2>
+            <p>Чтобы сохранять ваши работы.</p>
+        </div>
+        <input id="email-input" type="email" class="auth-field" placeholder="Email" autocomplete="email">
+        <input id="password-input" type="password" class="auth-field" placeholder="Пароль — не менее 8 знаков" autocomplete="current-password">
+        <div id="turnstile-box" style="margin:.75rem 0 1rem;display:flex;justify-content:center;min-height:65px;"></div>
+        <div class="auth-row">
+            <button id="btn-login" class="btn btn-blue">Войти</button>
+            <button id="btn-register" class="btn btn-soft">Регистрация</button>
+        </div>
+        <button id="btn-close-login" class="btn btn-plain center-btn">Закрыть</button>
+        <p id="auth-msg" class="msg"></p>
+    </div>
+</div>
+
+<!-- ==================== КАРТОЧКА СЛОВА ==================== -->
+<div id="vocab-scrim" class="vdrawer-scrim"></div>
+<aside id="vocab-drawer" class="vdrawer" role="dialog" aria-modal="true" aria-labelledby="vd-term" aria-hidden="true">
+    <div class="vdrawer-head">
+        <div style="flex:1;min-width:0;">
+            <h3 id="vd-term"></h3>
+            <div id="vd-meta" class="vd-meta"></div>
+        </div>
+        <button id="vd-close" class="vdrawer-close" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="vd-body" class="vdrawer-body"></div>
+</aside>
+
+<!-- ==================== ШАПКА ==================== -->
+<header class="appbar">
+    <div id="appbar-pano" class="appbar-pano" aria-hidden="true"></div>
+    <div class="appbar-inner">
+        <button id="btn-drawer" class="icon-btn" aria-label="Открыть панель заданий">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <div class="brand">
+            <div id="bear-logo"></div>
+            <div class="logo">
+                <div class="logo-row">
+                    <span class="logo-sig">RusWrite</span><span class="logo-ai">AI</span>
+                </div>
+                <!-- Nét gạch chân vẽ tay: một đường bút hơi lệch, không phải border thẳng -->
+                <svg class="logo-rule" viewBox="0 0 118 7" fill="none" aria-hidden="true">
+                    <path d="M1 4.6C18 2.1 41 1.4 63 2.2c19 .7 37 2.1 54 3.4"
+                          stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".75"/>
+                </svg>
+                <div class="brand-sub">Учение — это ключ к свободе</div>
+            </div>
+        </div>
+
+        <nav class="viewnav" aria-label="Разделы">
+            <button data-view="write" class="nav-item active"><span class="nav-ico" data-ico="pen"></span>Кабинет</button>
+            <button data-view="library" class="nav-item"><span class="nav-ico" data-ico="shelf"></span>Библиотека</button>
+        </nav>
+
+        <div class="appbar-right">
+            <button id="btn-level-badge" class="level-badge" aria-label="Изменить уровень">
+                <div id="level-badge-icon"></div>
+                <div>
+                    <div class="level-badge-label">Уровень</div>
+                    <div id="level-badge-text" class="level-badge-value">Выбрать</div>
+                    <div class="flag-thread"></div>
+                </div>
+            </button>
+            <div id="auth-section">
+                <button id="btn-show-login" class="btn btn-blue">Войти</button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- ==================== ПУТЬ ПО УРОВНЯМ ==================== -->
+<div class="journey" aria-label="Уровни">
+    <div id="journey-rail" class="journey-rail"></div>
+</div>
+
+<main>
+    <!-- ==================== КАБИНЕТ ==================== -->
+    <div id="view-write" class="workspace">
+        <aside id="drawer" class="drawer" aria-label="Задания и работы">
+            <section class="drawer-section">
+                <h2 class="drawer-title"><span class="ti" data-ico="scroll"></span>Задания</h2>
+                <div id="topic-list"><p class="hint">Загружаем задания…</p></div>
+            </section>
+            <section class="drawer-section">
+                <h2 class="drawer-title"><span class="ti" data-ico="diary"></span>Мои работы</h2>
+                <div id="history-list"><p class="hint">Войдите, чтобы сохранять работы.</p></div>
+            </section>
+        </aside>
+
+        <div class="stage">
+            <div class="stage-inner">
+                <section class="welcome">
+                    <div id="welcome-scene" class="welcome-scene" aria-hidden="true"></div>
+                    <div class="welcome-txt">
+                        <h2 id="welcome-title" class="serif">С возвращением.</h2>
+                        <p id="welcome-sub">Выберите задание.</p>
+                    </div>
+                </section>
+
+                <article id="topic-banner" class="assignment">
+                    <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:220px;">
+                            <div class="assignment-eyebrow">Задание</div>
+                            <h3 id="topic-banner-title" class="serif"></h3>
+                            <p id="topic-banner-text" class="assignment-text"></p>
+                        </div>
+                        <button id="btn-clear-topic" class="btn btn-plain btn-sm">Снять</button>
+                    </div>
+                </article>
+
+                <div id="custom-topic-wrap" class="self-topic">
+                    <label for="custom-topic-input">Своя тема</label>
+                    <input id="custom-topic-input" type="text" class="field" placeholder="Например: почему я начал учить русский…">
+                </div>
+
+                <section class="desk">
+                    <div id="desk-shelf" class="desk-shelf" aria-hidden="true"></div>
+                    <div class="paper">
+                        <div id="paper-corner-tr" class="paper-corner tr" aria-hidden="true"></div>
+                        <div class="paper-head">
+                            <h2 class="paper-title serif"><span id="paper-ico"></span>Ваш текст</h2>
+                            <div class="paper-actions">
+                                <span id="word-count" class="wordcount">0 слов</span>
+                                <button id="btn-outline" class="btn btn-soft">Составить план</button>
+                                <button id="btn-correct" class="btn btn-blue">Проверить текст</button>
+                            </div>
+                        </div>
+                        <div id="editor-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Поле для сочинения"
+                             placeholder="Пишите по-русски…"></div>
+                        <div id="paper-corner-bl" class="paper-corner bl" aria-hidden="true"></div>
+                    </div>
+                </section>
+
+                <section class="mentor">
+                    <div class="mentor-head">
+                        <div id="bear-avatar-small"></div>
+                        <div>
+                            <div class="mentor-name">Миша</div>
+                        </div>
+                    </div>
+                    <div class="tabs" role="tablist">
+                        <button data-tab="overview" class="tab-btn active" role="tab">Итог</button>
+                        <button data-tab="errors" class="tab-btn" role="tab">Ошибки</button>
+                        <button data-tab="outline" class="tab-btn" role="tab">План</button>
+                        <button data-tab="vocab" class="tab-btn" role="tab">Слова</button>
+                    </div>
+                    <div class="tab-body">
+                        <div id="tab-overview" class="tab-panel"></div>
+                        <div id="tab-errors" class="tab-panel hidden"></div>
+                        <div id="tab-outline" class="tab-panel hidden"></div>
+                        <div id="tab-vocab" class="tab-panel hidden"></div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== БИБЛИОТЕКА ==================== -->
+    <div id="view-library" class="lib" style="display:none;">
+        <div class="lib-hero">
+            <div class="lib-hero-txt">
+                <div id="lib-bear" style="display:flex;justify-content:center;"></div>
+                <h2 class="serif">Библиотека</h2>
+                <p>Учебники, грамматика, образцы.</p>
+            </div>
+            <div id="lib-hero-art" class="lib-hero-art" aria-hidden="true"></div>
+        </div>
+        <div class="lib-inner">
+            <div class="filters">
+                <select id="resource-level-filter" class="select" aria-label="Фильтр по уровню">
+                    <option value="">Все уровни</option>
+                </select>
+                <!-- Danh sách raздел được sinh từ chính dữ liệu sách, nên không bao giờ
+                     lệch với nội dung thật trong thư viện như bản cũ. -->
+                <select id="resource-category-filter" class="select" aria-label="Фильтр по разделу">
+                    <option value="">Все разделы</option>
+                </select>
+            </div>
+            <div id="resource-grid" class="shelf"></div>
+        </div>
+    </div>
+</main>
+
+<script>
+/* ==========================================================================
+   RusWrite AI — «Русская сказка»
+   Hợp đồng với backend giữ nguyên tuyệt đối: endpoint, payload, tên trường.
+   ========================================================================== */
+const API_BASE = '';
+
+/* ---------- Chống XSS ---------- */
+function escapeHTML(str){
+    if(str===null||str===undefined) return '';
+    return String(str).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function textToHtmlLines(str){ return escapeHTML(str).replace(/\n/g,'<br>'); }
+
+/* ==========================================================================
+   HỆ MINH HOẠ — toàn bộ vẽ bằng SVG inline, không dùng ảnh ngoài
+   Bảng màu dùng chung cho mọi hình để giữ phong cách thống nhất
+   ========================================================================== */
+const C = {
+    blue:'#2E5EAA', blueLt:'#4A90D9', bluePale:'#E3EFFB', gzhel:'#3A6FB0',
+    red:'#D4506A', redDeep:'#B33E56', coral:'#E8735A',
+    gold:'#F2B544', goldDeep:'#D99A2B', green:'#5A9E6F', greenLt:'#7DBF92',
+    lav:'#9B8AC4', ink:'#2A3A57', snow:'#FFFFFF', cream:'#FDF3E2',
+    fur:'#B98A5F', furDark:'#9C6F4A', skin:'#F3DCC0', wood:'#C58B57', woodDark:'#9E6B3F'
+};
+C.fur = '#BE8F63'; C.furDark = '#9C6F4A';
+
+/* --- Mái vòm củ hành: khối xây dựng cơ bản của mọi cảnh Nga --- */
+function dome(cx, baseY, w, h, color, stripe){
+    const half = w/2;
+    const tip = baseY - h;
+    return `
+      <path d="M${cx-half} ${baseY}
+               C${cx-half} ${baseY-h*0.55} ${cx-half*0.95} ${tip+h*0.16} ${cx} ${tip}
+               C${cx+half*0.95} ${tip+h*0.16} ${cx+half} ${baseY-h*0.55} ${cx+half} ${baseY} Z"
+            fill="${color}"/>
+      ${stripe?`<path d="M${cx-half*0.45} ${baseY} C${cx-half*0.4} ${baseY-h*0.5} ${cx-half*0.2} ${tip+h*0.2} ${cx} ${tip}
+                        C${cx+half*0.2} ${tip+h*0.2} ${cx+half*0.4} ${baseY-h*0.5} ${cx+half*0.45} ${baseY} Z"
+                     fill="${stripe}" opacity=".55"/>`:''}
+      <path d="M${cx} ${tip} v${-h*0.2}" stroke="${C.gold}" stroke-width="${Math.max(1.5,w*0.05)}" stroke-linecap="round"/>
+      <path d="M${cx-w*0.09} ${tip-h*0.13} h${w*0.18}" stroke="${C.gold}" stroke-width="${Math.max(1.2,w*0.04)}" stroke-linecap="round"/>`;
+}
+
+/* --- Panorama Moskva: dùng ở header và banner modal --- */
+function panoramaSVG(w, h){
+    return `
+    <svg viewBox="0 0 600 150" width="${w||'100%'}" height="${h||''}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax meet" role="img" aria-label="Панорама Москвы">
+      <g class="cloud-drift" opacity=".7">
+        <ellipse cx="90" cy="26" rx="26" ry="10" fill="#fff"/><ellipse cx="112" cy="28" rx="18" ry="8" fill="#fff"/>
+        <ellipse cx="470" cy="20" rx="30" ry="11" fill="#fff"/><ellipse cx="446" cy="23" rx="19" ry="8" fill="#fff"/>
+      </g>
+      <g class="bird-flap" fill="none" stroke="${C.blue}" stroke-width="2" stroke-linecap="round" opacity=".5">
+        <path d="M356 34 q6 -5 12 0 q6 -5 12 0"/><path d="M392 22 q4 -4 9 0 q5 -4 9 0"/>
+      </g>
+      <!-- tháp Spasskaya -->
+      <rect x="60" y="78" width="42" height="72" fill="${C.redDeep}"/>
+      <rect x="56" y="72" width="50" height="10" rx="3" fill="${C.red}"/>
+      <circle cx="81" cy="94" r="12" fill="${C.cream}"/><circle cx="81" cy="94" r="9" fill="${C.gold}"/>
+      <path d="M81 94 v-6 M81 94 l5 3" stroke="${C.ink}" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M60 72 L81 26 L102 72 Z" fill="${C.blue}"/>
+      <path d="M81 26 l3.2 8 8 0 -6.4 5 2.4 8.4 -7.2 -5 -7.2 5 2.4 -8.4 -6.4 -5 8 0 z" fill="${C.gold}"/>
+      <!-- tường thành -->
+      <rect x="102" y="112" width="120" height="38" fill="${C.red}"/>
+      <g fill="${C.red}">
+        <rect x="102" y="104" width="14" height="10"/><rect x="130" y="104" width="14" height="10"/>
+        <rect x="158" y="104" width="14" height="10"/><rect x="186" y="104" width="14" height="10"/><rect x="208" y="104" width="14" height="10"/>
+      </g>
+      <!-- nhà thờ nhiều vòm -->
+      <rect x="228" y="96" width="34" height="54" fill="${C.cream}"/>
+      ${dome(245,96,34,34,C.green,C.greenLt)}
+      <rect x="270" y="74" width="52" height="76" fill="${C.snow}"/>
+      ${dome(296,74,54,58,C.red,C.gold)}
+      <rect x="330" y="92" width="34" height="58" fill="${C.cream}"/>
+      ${dome(347,92,34,34,C.blueLt,C.snow)}
+      <rect x="372" y="102" width="28" height="48" fill="${C.snow}"/>
+      ${dome(386,102,28,28,C.lav,'#C9BDE4')}
+      <!-- rừng bạch dương bên phải -->
+      <g>
+        <rect x="430" y="96" width="7" height="54" rx="3" fill="${C.snow}" stroke="#D9CDBA" stroke-width="1"/>
+        <rect x="452" y="86" width="8" height="64" rx="3" fill="${C.snow}" stroke="#D9CDBA" stroke-width="1"/>
+        <rect x="476" y="100" width="7" height="50" rx="3" fill="${C.snow}" stroke="#D9CDBA" stroke-width="1"/>
+        <g fill="${C.ink}" opacity=".45">
+          <rect x="430" y="108" width="7" height="3"/><rect x="430" y="124" width="7" height="2.5"/>
+          <rect x="452" y="100" width="8" height="3"/><rect x="452" y="118" width="8" height="2.5"/>
+          <rect x="476" y="112" width="7" height="3"/>
+        </g>
+        <ellipse cx="433" cy="92" rx="16" ry="12" fill="${C.greenLt}"/>
+        <ellipse cx="456" cy="80" rx="19" ry="14" fill="${C.green}"/>
+        <ellipse cx="479" cy="96" rx="15" ry="11" fill="${C.greenLt}"/>
+      </g>
+      <!-- cây thông -->
+      <g>
+        <path d="M520 150 L536 104 L552 150 Z" fill="${C.green}"/>
+        <path d="M523 128 L536 96 L549 128 Z" fill="${C.greenLt}"/>
+        <path d="M556 150 L568 116 L580 150 Z" fill="${C.green}"/>
+      </g>
+      <!-- nền tuyết -->
+      <path d="M0 150 q60 -12 130 -4 q80 9 160 -6 q90 -16 180 4 q70 8 130 -2 v8 H0 Z" fill="${C.snow}"/>
+    </svg>`;
+}
+
+/* --- MASCOT Мишка: 5 trạng thái --- */
+function bearSVG(size, mood){
+    mood = mood || 'idle';
+    const glasses = mood==='read' ? `
+        <g fill="none" stroke="${C.ink}" stroke-width="2.4">
+          <circle cx="40" cy="55" r="9" fill="rgba(227,239,251,.55)"/>
+          <circle cx="60" cy="55" r="9" fill="rgba(227,239,251,.55)"/>
+          <path d="M49 55 h2 M31 53 l-6 -3 M69 53 l6 -3" stroke-linecap="round"/>
+        </g>` : '';
+    const eyes = {
+        idle:`<ellipse class="bear-eye" cx="40" cy="55" rx="3.6" ry="4.2"/><ellipse class="bear-eye" cx="60" cy="55" rx="3.6" ry="4.2"/>`,
+        read:`<ellipse cx="40" cy="56" rx="3.2" ry="3.6"/><ellipse cx="60" cy="56" rx="3.2" ry="3.6"/>`,
+        think:`<ellipse cx="41" cy="53" rx="3.4" ry="4"/><ellipse cx="61" cy="53" rx="3.4" ry="4"/>`,
+        cheer:`<path d="M35 56 q5 -6 10 0" fill="none" stroke="${C.ink}" stroke-width="3" stroke-linecap="round"/>
+               <path d="M55 56 q5 -6 10 0" fill="none" stroke="${C.ink}" stroke-width="3" stroke-linecap="round"/>`,
+        care:`<ellipse cx="40" cy="56" rx="3.6" ry="3.6"/><ellipse cx="60" cy="56" rx="3.6" ry="3.6"/>`
+    }[mood];
+    const mouth = {
+        idle:`<path d="M44 70 q6 5 12 0" fill="none" stroke="${C.ink}" stroke-width="2.2" stroke-linecap="round"/>`,
+        read:`<path d="M45 71 h10" fill="none" stroke="${C.ink}" stroke-width="2.2" stroke-linecap="round"/>`,
+        think:`<path d="M45 71 q5 -3 10 0" fill="none" stroke="${C.ink}" stroke-width="2.2" stroke-linecap="round"/>`,
+        cheer:`<path d="M42 68 q8 9 16 0" fill="${C.redDeep}" stroke="${C.ink}" stroke-width="2"/>`,
+        care:`<path d="M44 70 q6 4 12 0" fill="none" stroke="${C.ink}" stroke-width="2.2" stroke-linecap="round"/>`
+    }[mood];
+    const extra = {
+        idle:'', read:'',
+        think:`<circle cx="86" cy="30" r="3.4" fill="${C.gold}" opacity=".85"/><circle cx="94" cy="19" r="5" fill="${C.gold}" opacity=".6"/>`,
+        cheer:`<path d="M88 20 l2.6 6 6 2.6 -6 2.6 -2.6 6 -2.6 -6 -6 -2.6 6 -2.6 z" fill="${C.gold}"/>
+               <path d="M14 26 l1.8 4.2 4.2 1.8 -4.2 1.8 -1.8 4.2 -1.8 -4.2 -4.2 -1.8 4.2 -1.8 z" fill="${C.coral}"/>`,
+        care:`<path d="M84 34 q7 -9 14 0 q-7 10 -14 0 z" fill="${C.red}" opacity=".7"/>`
+    }[mood];
+    /* Đạo cụ: bút máy (idle/care), sách đang mở (read/think), cờ nhỏ (cheer) */
+    const prop = (mood==='read'||mood==='think') ? `
+        <g transform="translate(0,2)">
+          <path d="M24 88 q26 -10 52 0 v10 q-26 -9 -52 0 z" fill="${C.snow}" stroke="${C.blue}" stroke-width="2"/>
+          <path d="M50 86 v12" stroke="${C.blue}" stroke-width="2"/>
+          <g stroke="${C.blueLt}" stroke-width="1.4" opacity=".7">
+            <path d="M30 89 h14"/><path d="M56 89 h14"/><path d="M31 93 h12"/><path d="M57 93 h12"/>
+          </g>
+        </g>` : mood==='cheer' ? `
+        <g class="bear-wave">
+          <circle cx="77" cy="84" r="9" fill="${C.furDark}"/>
+          <rect x="82" y="56" width="3" height="30" rx="1.5" fill="${C.woodDark}"/>
+          <path d="M85 57 h13 v5 h-13 z" fill="#fff" stroke="${C.ink}" stroke-width=".6"/>
+          <path d="M85 62 h13 v5 h-13 z" fill="${C.blue}"/>
+          <path d="M85 67 h13 v5 h-13 z" fill="${C.red}"/>
+        </g>` : `
+        <g transform="rotate(-16 28 84)">
+          <circle cx="26" cy="87" r="9" fill="${C.furDark}"/>
+          <rect x="24" y="58" width="8" height="30" rx="3.5" fill="${C.blue}"/>
+          <path d="M24 58 l4 -12 l4 12 z" fill="${C.gold}"/>
+          <path d="M28 52 v7" stroke="${C.ink}" stroke-width="1.4"/>
+          <rect x="24" y="75" width="8" height="3.5" fill="${C.gold}"/>
+        </g>`;
+    const animClass = mood==='read'||mood==='think' ? 'bear-read' : mood==='cheer' ? 'bear-hop' : '';
+    return `
+    <svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Миша">
+      <g class="${animClass}">
+        <circle cx="24" cy="33" r="12.5" fill="${C.furDark}"/><circle cx="24" cy="33" r="6.5" fill="${C.skin}" opacity=".65"/>
+        <circle cx="76" cy="33" r="12.5" fill="${C.furDark}"/><circle cx="76" cy="33" r="6.5" fill="${C.skin}" opacity=".65"/>
+        <circle cx="50" cy="57" r="30" fill="${C.fur}"/>
+        <!-- mũ ushanka -->
+        <path d="M21 41 q29 -33 58 0 q-29 -14 -58 0 z" fill="${C.red}"/>
+        <path d="M19 41 q31 -15 62 0 q-4 10 -9 10 q-22 -9 -44 0 q-5 0 -9 -10 z" fill="${C.cream}"/>
+        <circle cx="50" cy="20" r="5.5" fill="${C.cream}"/>
+        <g fill="${C.ink}">${eyes}</g>
+        ${glasses}
+        <ellipse cx="31" cy="66" rx="6" ry="4" fill="${C.coral}" opacity=".35"/>
+        <ellipse cx="69" cy="66" rx="6" ry="4" fill="${C.coral}" opacity=".35"/>
+        <ellipse cx="50" cy="68" rx="13.5" ry="10.5" fill="${C.skin}"/>
+        <ellipse cx="50" cy="63" rx="4.2" ry="3.2" fill="${C.ink}"/>
+        ${mouth}
+        ${prop}${extra}
+      </g>
+    </svg>`;
+}
+
+/* --- Matryoshka: lớn dần và rực rỡ dần theo hành trình --- */
+const DOLL = [
+    {body:'#8FBEE0', scarf:'#4A90D9', flower:'#F2B544'},
+    {body:'#7DBF92', scarf:'#5A9E6F', flower:'#F2B544'},
+    {body:'#F5C86B', scarf:'#D99A2B', flower:'#D4506A'},
+    {body:'#F09B7C', scarf:'#E8735A', flower:'#FFFFFF'},
+    {body:'#E2778D', scarf:'#D4506A', flower:'#F2B544'},
+    {body:'#B5A6DA', scarf:'#9B8AC4', flower:'#F2B544'}
+];
+function matryoshkaSVG(i, size){
+    const c = DOLL[i] || DOLL[0];
+    return `
+    <svg width="${size}" height="${size*1.22}" viewBox="0 0 60 73" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+      <path d="M30 3 C41 3 46 15 42 23 C52 30 56 47 52 60 C48 69 40 72 30 72 C20 72 12 69 8 60 C4 47 8 30 18 23 C14 15 19 3 30 3 Z" fill="${c.body}" stroke="#fff" stroke-width="1.5"/>
+      <path d="M18 23 C14 15 19 3 30 3 C41 3 46 15 42 23 C38 27 22 27 18 23 Z" fill="${c.scarf}"/>
+      <circle cx="30" cy="19" r="9.5" fill="${C.skin}"/>
+      <circle cx="26.4" cy="18" r="1.6" fill="${C.ink}"/><circle cx="33.6" cy="18" r="1.6" fill="${C.ink}"/>
+      <circle cx="22.8" cy="21.4" r="2.3" fill="${C.coral}" opacity=".5"/>
+      <circle cx="37.2" cy="21.4" r="2.3" fill="${C.coral}" opacity=".5"/>
+      <path d="M27 23.2 q3 2.6 6 0" fill="none" stroke="#A5613A" stroke-width="1.4" stroke-linecap="round"/>
+      <ellipse cx="30" cy="50" rx="13.5" ry="10.5" fill="#fff" opacity=".95"/>
+      <circle cx="30" cy="50" r="3.8" fill="${c.scarf}"/>
+      <circle cx="30" cy="43.2" r="2.6" fill="${c.flower}"/><circle cx="36.8" cy="50" r="2.6" fill="${c.flower}"/>
+      <circle cx="30" cy="56.8" r="2.6" fill="${c.flower}"/><circle cx="23.2" cy="50" r="2.6" fill="${c.flower}"/>
+      <path d="M14 40 q4 6 3 14" fill="none" stroke="#fff" stroke-width="1.6" opacity=".65" stroke-linecap="round"/>
+      <path d="M46 40 q-4 6 -3 14" fill="none" stroke="#fff" stroke-width="1.6" opacity=".65" stroke-linecap="round"/>
+    </svg>`;
+}
+
+/* --- SÁU MIỀN ĐẤT: mỗi trình độ một khung cảnh riêng --- */
+const LANDS = [
+    {name:'Снежная деревня',   desc:'Первые слова и фразы.'},
+    {name:'Первый городок',    desc:'Рассказ о своём дне.'},
+    {name:'Москва',            desc:'Своё мнение и аргументы.'},
+    {name:'Литературный край', desc:'Письмо, заявление, статья.'},
+    {name:'Берёзовая роща',    desc:'Эссе-рассуждение.'},
+    {name:'Снежная вершина',   desc:'Точность и тонкость стиля.'}
+];
+function landSVG(i, w, h){
+    const W = w||120, H = h||72;
+    const sky = `<rect width="120" height="72" fill="#EAF4FD"/><circle cx="100" cy="16" r="9" fill="${C.gold}" opacity=".85"/>`;
+    const snowGround = `<path d="M0 72 v-10 q30 -6 60 -1 q30 5 60 -3 v14 z" fill="#fff"/>`;
+    const scenes = [
+        /* A1 — làng izba */`${sky}
+          <path d="M22 60 v-16 h26 v16 z" fill="${C.wood}"/>
+          <path d="M18 44 L35 30 L52 44 z" fill="${C.redDeep}"/>
+          <rect x="31" y="50" width="9" height="10" fill="${C.blue}"/>
+          <rect x="40" y="24" width="5" height="9" fill="${C.woodDark}"/>
+          <circle cx="43" cy="20" r="4" fill="#fff" opacity=".8"/><circle cx="47" cy="14" r="3" fill="#fff" opacity=".6"/>
+          <path d="M70 60 L79 38 L88 60 z" fill="${C.green}"/><path d="M72 48 L79 32 L86 48 z" fill="${C.greenLt}"/>
+          ${snowGround}`,
+        /* A2 — thị trấn */`${sky}
+          <rect x="14" y="40" width="20" height="24" fill="${C.cream}"/><path d="M11 40 L24 29 L37 40 z" fill="${C.coral}"/>
+          <rect x="38" y="34" width="22" height="30" fill="#fff"/><path d="M35 34 L49 22 L63 34 z" fill="${C.blue}"/>
+          <rect x="64" y="44" width="18" height="20" fill="${C.cream}"/><path d="M61 44 L73 34 L85 44 z" fill="${C.green}"/>
+          <rect x="88" y="42" width="14" height="22" fill="#fff"/>
+          ${dome(95,42,16,16,C.blueLt,'#fff')}
+          <g fill="${C.gold}" opacity=".9"><rect x="19" y="47" width="5" height="6"/><rect x="44" y="42" width="6" height="7"/><rect x="69" y="50" width="5" height="6"/></g>
+          ${snowGround}`,
+        /* B1 — Moskva */`${sky}
+          <rect x="10" y="44" width="16" height="20" fill="${C.redDeep}"/><path d="M8 44 L18 26 L28 44 z" fill="${C.blue}"/>
+          <path d="M18 26 l1.6 4 4 0 -3.2 2.6 1.2 4.2 -3.6 -2.6 -3.6 2.6 1.2 -4.2 -3.2 -2.6 4 0 z" fill="${C.gold}"/>
+          <rect x="34" y="40" width="18" height="24" fill="#fff"/>${dome(43,40,20,22,C.green,C.greenLt)}
+          <rect x="56" y="30" width="24" height="34" fill="${C.cream}"/>${dome(68,30,26,28,C.red,C.gold)}
+          <rect x="84" y="42" width="16" height="22" fill="#fff"/>${dome(92,42,18,18,C.lav,'#C9BDE4')}
+          ${snowGround}`,
+        /* B2 — miền văn chương */`${sky}
+          <g transform="translate(4,0)">
+            <rect x="20" y="46" width="46" height="8" rx="2" fill="${C.red}"/>
+            <rect x="24" y="38" width="38" height="8" rx="2" fill="${C.blue}"/>
+            <rect x="28" y="30" width="30" height="8" rx="2" fill="${C.green}"/>
+            <g fill="#fff" opacity=".5"><rect x="22" y="49" width="42" height="1.5"/><rect x="26" y="41" width="34" height="1.5"/></g>
+          </g>
+          <path d="M84 56 q6 -22 14 -30 q-2 14 -8 22 q-3 5 -6 8 z" fill="#fff" stroke="${C.blue}" stroke-width="1.6"/>
+          <path d="M84 56 l-4 6" stroke="${C.ink}" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="76" cy="60" r="3" fill="${C.blue}" opacity=".6"/>
+          ${snowGround}`,
+        /* C1 — rừng bạch dương */`${sky}
+          <g>
+            <rect x="16" y="24" width="7" height="42" rx="3" fill="#fff" stroke="#D9CDBA" stroke-width="1"/>
+            <rect x="38" y="18" width="8" height="48" rx="3" fill="#fff" stroke="#D9CDBA" stroke-width="1"/>
+            <rect x="62" y="26" width="7" height="40" rx="3" fill="#fff" stroke="#D9CDBA" stroke-width="1"/>
+            <rect x="84" y="20" width="8" height="46" rx="3" fill="#fff" stroke="#D9CDBA" stroke-width="1"/>
+            <g fill="${C.ink}" opacity=".45">
+              <rect x="16" y="36" width="7" height="3"/><rect x="16" y="52" width="7" height="2.5"/>
+              <rect x="38" y="30" width="8" height="3"/><rect x="38" y="48" width="8" height="2.5"/>
+              <rect x="62" y="40" width="7" height="3"/><rect x="84" y="34" width="8" height="3"/>
+            </g>
+            <ellipse cx="19" cy="20" rx="14" ry="10" fill="${C.greenLt}"/>
+            <ellipse cx="42" cy="14" rx="17" ry="11" fill="${C.green}"/>
+            <ellipse cx="65" cy="22" rx="14" ry="10" fill="${C.greenLt}"/>
+            <ellipse cx="88" cy="16" rx="15" ry="10" fill="${C.green}"/>
+          </g>
+          ${snowGround}`,
+        /* C2 — đỉnh núi */`${sky}
+          <path d="M0 66 L26 30 L46 66 z" fill="#A9BEDB"/><path d="M26 30 L36 48 q-10 4 -20 0 z" fill="#fff"/>
+          <path d="M34 66 L64 18 L96 66 z" fill="${C.blue}" opacity=".85"/>
+          <path d="M64 18 L78 42 q-14 6 -28 0 z" fill="#fff"/>
+          <path d="M86 66 L104 40 L120 66 z" fill="#A9BEDB"/>
+          <g class="bird-flap" fill="none" stroke="${C.ink}" stroke-width="1.6" opacity=".5" stroke-linecap="round">
+            <path d="M20 18 q4 -3 8 0 q4 -3 8 0"/>
+          </g>
+          ${snowGround}`
+    ];
+    // Tỷ lệ viewBox 120x72 = 5/3, khớp CHÍNH XÁC với .scene-oval, nên hình luôn
+    // vừa khít: không cắt, không méo, không thừa khoảng trắng ở bất kỳ cấp độ nào.
+    return `<svg viewBox="0 0 120 72" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">${scenes[i]||scenes[0]}</svg>`;
+}
+
+/* --- Icon minh hoạ cho điều hướng và tiêu đề --- */
+function iconSVG(name, size){
+    const s = size||22;
+    const icons = {
+        pen:`<path d="M5 19 L7 13 L17 3 l4 4 L11 17 z" fill="${C.gold}" stroke="${C.blue}" stroke-width="1.6" stroke-linejoin="round"/>
+             <path d="M17 3 l4 4" stroke="${C.blue}" stroke-width="1.6"/><path d="M5 19 l3 -1" stroke="${C.ink}" stroke-width="1.6" stroke-linecap="round"/>
+             <path d="M3 21 h10" stroke="${C.blueLt}" stroke-width="1.8" stroke-linecap="round"/>`,
+        shelf:`<rect x="3" y="5" width="4" height="13" rx="1" fill="${C.red}"/>
+               <rect x="8" y="7" width="4" height="11" rx="1" fill="${C.blue}"/>
+               <rect x="13" y="4" width="4" height="14" rx="1" fill="${C.green}"/>
+               <rect x="18" y="8" width="3" height="10" rx="1" fill="${C.gold}"/>
+               <path d="M2 19.5 h20" stroke="${C.ink}" stroke-width="1.8" stroke-linecap="round"/>`,
+        scroll:`<path d="M6 3 h11 a3 3 0 0 1 3 3 v13 a2 2 0 0 1 -2 2 H6 a3 3 0 0 1 -3 -3 V6 a3 3 0 0 1 3 -3 z" fill="#fff" stroke="${C.blue}" stroke-width="1.6"/>
+                <path d="M7 8 h8 M7 12 h8 M7 16 h5" stroke="${C.blueLt}" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="18" cy="5" r="2.5" fill="${C.gold}"/>`,
+        diary:`<path d="M4 4 h13 a2 2 0 0 1 2 2 v14 H6 a2 2 0 0 1 -2 -2 z" fill="#fff" stroke="${C.red}" stroke-width="1.6"/>
+               <path d="M4 4 v16" stroke="${C.red}" stroke-width="3"/>
+               <path d="M9 9 h7 M9 13 h7" stroke="${C.coral}" stroke-width="1.5" stroke-linecap="round"/>
+               <path d="M15 3 v8 l2 -2 2 2 V3 z" fill="${C.gold}"/>`,
+        paper:`<path d="M6 3 h9 l5 5 v13 H6 z" fill="#fff" stroke="${C.blue}" stroke-width="1.6" stroke-linejoin="round"/>
+               <path d="M15 3 v5 h5" fill="none" stroke="${C.blue}" stroke-width="1.6"/>
+               <path d="M9 12 h8 M9 16 h6" stroke="${C.blueLt}" stroke-width="1.5" stroke-linecap="round"/>`
+    };
+    return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">${icons[name]||''}</svg>`;
+}
+
+/* --- Hoa văn Khokhloma: góc trang trí cho trang giấy --- */
+function khokhlomaCorner(size){
+    return `
+    <svg width="${size}" height="${size}" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+      <path d="M74 8 C50 10 30 26 24 50" fill="none" stroke="${C.gold}" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M70 20 C54 22 40 34 36 50" fill="none" stroke="${C.coral}" stroke-width="1.8" stroke-linecap="round" opacity=".8"/>
+      <g>
+        <circle cx="24" cy="52" r="6" fill="${C.red}"/><circle cx="24" cy="52" r="2.4" fill="${C.gold}"/>
+        <ellipse cx="40" cy="34" rx="6" ry="3.6" fill="${C.gold}" transform="rotate(-38 40 34)"/>
+        <ellipse cx="56" cy="22" rx="5" ry="3" fill="${C.green}" transform="rotate(-32 56 22)"/>
+        <circle cx="68" cy="12" r="4.2" fill="${C.coral}"/><circle cx="68" cy="12" r="1.6" fill="#fff"/>
+        <ellipse cx="33" cy="44" rx="4" ry="2.4" fill="${C.greenLt}" transform="rotate(-40 33 44)"/>
+      </g>
+      <path d="M18 62 q6 -4 12 -2" fill="none" stroke="${C.gold}" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>`;
+}
+
+/* --- Giá sách mờ đặt cạnh bàn viết --- */
+function bookshelfSVG(){
+    return `
+    <svg width="60" height="220" viewBox="0 0 60 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+      <rect x="4" y="0" width="52" height="216" rx="6" fill="${C.cream}" stroke="${C.wood}" stroke-width="2"/>
+      <g>
+        <rect x="10" y="14" width="9" height="52" rx="2" fill="${C.red}"/>
+        <rect x="21" y="20" width="8" height="46" rx="2" fill="${C.blue}"/>
+        <rect x="31" y="12" width="10" height="54" rx="2" fill="${C.green}"/>
+        <rect x="43" y="24" width="7" height="42" rx="2" fill="${C.gold}"/>
+        <rect x="6" y="66" width="48" height="4" fill="${C.wood}"/>
+        <rect x="10" y="82" width="8" height="48" rx="2" fill="${C.lav}"/>
+        <rect x="20" y="76" width="10" height="54" rx="2" fill="${C.coral}"/>
+        <rect x="32" y="86" width="8" height="44" rx="2" fill="${C.blueLt}"/>
+        <rect x="42" y="80" width="9" height="50" rx="2" fill="${C.green}"/>
+        <rect x="6" y="130" width="48" height="4" fill="${C.wood}"/>
+        <rect x="10" y="146" width="10" height="50" rx="2" fill="${C.gold}"/>
+        <rect x="22" y="152" width="8" height="44" rx="2" fill="${C.red}"/>
+        <rect x="32" y="144" width="9" height="52" rx="2" fill="${C.blue}"/>
+        <rect x="43" y="150" width="8" height="46" rx="2" fill="${C.lav}"/>
+        <rect x="6" y="196" width="48" height="5" fill="${C.wood}"/>
+      </g>
+    </svg>`;
+}
+
+/* --- Ấm samovar: dùng cho empty state --- */
+function samovarSVG(size){
+    return `
+    <svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+      <ellipse cx="50" cy="92" rx="26" ry="5" fill="${C.ink}" opacity=".1"/>
+      <path d="M34 34 q16 -6 32 0 q6 22 2 40 q-18 6 -36 0 q-4 -18 2 -40 z" fill="${C.gold}" stroke="${C.goldDeep}" stroke-width="2"/>
+      <path d="M40 40 q10 -4 20 0 q3 14 1 26 q-11 4 -22 0 q-2 -12 1 -26 z" fill="#FFD177" opacity=".7"/>
+      <rect x="42" y="24" width="16" height="10" rx="3" fill="${C.goldDeep}"/>
+      <circle cx="50" cy="20" r="5" fill="${C.red}"/>
+      <path d="M66 46 q10 2 8 12 q-2 8 -8 6" fill="none" stroke="${C.goldDeep}" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M34 46 q-10 2 -8 12 q2 8 8 6" fill="none" stroke="${C.goldDeep}" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M46 74 h8 v6 h-8 z" fill="${C.goldDeep}"/>
+      <rect x="36" y="80" width="28" height="6" rx="3" fill="${C.goldDeep}"/>
+      <g opacity=".55">
+        <path d="M44 16 q4 -7 0 -12" fill="none" stroke="${C.blueLt}" stroke-width="2" stroke-linecap="round"/>
+        <path d="M56 16 q5 -8 1 -14" fill="none" stroke="${C.blueLt}" stroke-width="2" stroke-linecap="round"/>
+      </g>
+    </svg>`;
+}
+
+/* --- Chim lửa Firebird: khoảnh khắc ăn mừng --- */
+function firebirdSVG(size){
+    return `
+    <svg width="${size}" height="${size*0.72}" viewBox="0 0 140 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+      <g class="bird-flap">
+        <path d="M60 52 q-26 -22 -46 -14 q16 4 24 14 q-14 0 -22 8 q18 2 30 6 z" fill="${C.gold}" opacity=".9"/>
+        <path d="M62 50 q10 -26 30 -30 q-6 14 -6 24 q12 -10 26 -8 q-12 8 -18 20 q14 -2 24 6 q-18 2 -30 10 q10 8 10 18 q-14 -10 -26 -10 z" fill="${C.coral}"/>
+        <path d="M64 50 q8 -18 22 -22 q-4 10 -4 18 q9 -7 19 -6 q-9 6 -13 15 z" fill="${C.gold}"/>
+        <ellipse cx="58" cy="52" rx="16" ry="11" fill="${C.red}"/>
+        <circle cx="47" cy="47" r="8" fill="${C.red}"/>
+        <circle cx="44.5" cy="45.5" r="1.9" fill="#fff"/><circle cx="44" cy="45.5" r="1" fill="${C.ink}"/>
+        <path d="M39 48 l-7 2 l7 2 z" fill="${C.gold}"/>
+        <path d="M47 39 q4 -8 10 -9 q-3 6 -3 10 z" fill="${C.gold}"/>
+      </g>
+    </svg>`;
+}
+
+/* ==========================================================================
+   TRẠNG THÁI
+   ========================================================================== */
+let LEVELS = [];
+let currentUser = null;
+let turnstileToken = null;
+let currentLevel = localStorage.getItem('level') || null;
+let currentTopic = null;
+let currentView = 'write';
+let thinkingTimer = null;
+
+/* ---------- LEARNING CONTEXT phía client ----------
+   Đây là bản sao nhẹ của learningContext ở backend. Nhờ nó, khi bấm "Nhờ Мишка chấm"
+   frontend gửi kèm dàn ý và túi từ vựng đã xin trước đó, nên phần chấm bài biết
+   người học đang đi theo kế hoạch nào. Không có dàn ý thì vẫn chấm bình thường. */
+let currentOutline = null;      // nguyên vẹn response của /api/outline
+let currentVocabulary = [];     // túi từ vựng đang hoạt động (dàn ý + từ bổ sung sau khi chấm)
+const vocabDetailCache = new Map();  // "term|level|topic" -> chi tiết, tránh gọi AI lại (mục 23)
+
+function learningTopic(){
+    if(currentTopic) return { title: currentTopic.title, prompt: currentTopic.prompt_text };
+    const custom = ($('custom-topic-input')||{}).value;
+    return custom && custom.trim() ? { title:'', prompt: custom.trim() } : null;
+}
+function mergeVocabulary(items){
+    if(!Array.isArray(items) || !items.length) return;
+    const seen = new Set(currentVocabulary.map(v => (v.term||'').toLowerCase()));
+    items.forEach(v => {
+        const key = (v.term||'').toLowerCase();
+        if(key && !seen.has(key)){ seen.add(key); currentVocabulary.push(v); }
+    });
+}
+
+const $ = id => document.getElementById(id);
+function getAuthToken(){ return localStorage.getItem('token'); }
+function levelIndex(code){ return LEVELS.findIndex(l=>l.code===code); }
+function levelLabel(code){
+    const l = LEVELS.find(x=>x.code===code);
+    const idx = levelIndex(code);
+    return l ? `${l.code} · ${LANDS[idx]?LANDS[idx].name:''}` : 'Выбрать';
+}
+
+/* ---------- Gắn minh hoạ tĩnh vào trang ---------- */
+$('bear-logo').innerHTML = bearSVG(46,'idle');
+$('bear-avatar-small').innerHTML = bearSVG(52,'idle');
+$('modal-bear').innerHTML = bearSVG(72,'cheer');
+$('auth-bear').innerHTML = bearSVG(64,'idle');
+$('lib-bear').innerHTML = bearSVG(60,'read');
+$('appbar-pano').innerHTML = panoramaSVG('100%','');
+$('modal-banner-art').innerHTML = panoramaSVG('100%','');
+$('lib-hero-art').innerHTML = panoramaSVG('100%','');
+$('desk-shelf').innerHTML = bookshelfSVG();
+$('paper-corner-tr').innerHTML = khokhlomaCorner(80);
+$('paper-corner-bl').innerHTML = khokhlomaCorner(70);
+$('paper-ico').innerHTML = iconSVG('paper',20);
+document.querySelectorAll('[data-ico]').forEach(el=>{
+    el.innerHTML = iconSVG(el.dataset.ico, el.classList.contains('nav-ico')?22:22);
+});
+
+/* ---------- Tuyết rơi rất nhẹ ---------- */
+(function makeSnow(){
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const box = $('snowfall');
+    let html = '';
+    for(let i=0;i<26;i++){
+        const size = 3 + Math.random()*4;
+        html += `<span style="left:${Math.random()*100}%;width:${size}px;height:${size}px;
+                 animation-duration:${11+Math.random()*13}s;animation-delay:${-Math.random()*20}s;"></span>`;
+    }
+    box.innerHTML = html;
+})();
+
+/* ---------- Trạng thái rỗng: mỗi cái một minh hoạ riêng ---------- */
+function emptyState(art, title, text){
+    return `<div class="empty enter">${art}<strong class="serif">${escapeHTML(title)}</strong><p>${escapeHTML(text)}</p></div>`;
+}
+function resetPanels(){
+    // Microcopy ngắn — giao diện tự nói bằng hình ảnh, không cần giải thích dài dòng
+    $('tab-overview').innerHTML = emptyState(bearSVG(84,'idle'),'Пока пусто','Текст ещё не проверен.');
+    $('tab-errors').innerHTML  = emptyState(samovarSVG(80),'Пока пусто','Разбор появится после проверки.');
+    $('tab-outline').innerHTML = emptyState(bearSVG(84,'think'),'Плана пока нет','Нажмите «Составить план».');
+    $('tab-vocab').innerHTML   = emptyState(matryoshkaSVG(2,70),'Пока пусто','Новые слова появятся здесь.');
+}
+resetPanels();
+
+/* ==========================================================================
+   TRÌNH ĐỘ & HÀNH TRÌNH
+   ========================================================================== */
+async function loadLevels(){
+    try{
+        const res = await fetch(`${API_BASE}/api/levels`);
+        LEVELS = await res.json();
+    }catch(e){
+        LEVELS = [
+            {code:'A1'},{code:'A2'},{code:'B1'},{code:'B2'},{code:'C1'},{code:'C2'}
+        ];
+    }
+    renderLevelGrid(); renderJourney(); renderLevelBadge(); renderWelcome();
+    if(!currentLevel) openLevelModal();
+    loadTopics();
+}
+
+function renderLevelGrid(){
+    const cur = levelIndex(currentLevel);
+    $('level-grid').innerHTML = LEVELS.map((l,i)=>{
+        const land = LANDS[i]||LANDS[0];
+        return `
+        <button data-level="${escapeHTML(l.code)}" class="level-card ${i===cur?'is-current':''}">
+            ${i===cur?'<span class="level-card-now">Вы здесь</span>':''}
+            <span class="level-card-art"><span class="scene-oval">${landSVG(i)}</span></span>
+            <span class="level-card-doll">${matryoshkaSVG(i, 36)}</span>
+            <span class="level-card-code">${escapeHTML(l.code)}</span>
+            <span class="level-card-land">${escapeHTML(land.name)}</span>
+        </button>`;
+    }).join('');
+    $('level-grid').querySelectorAll('.level-card').forEach(btn=>{
+        btn.addEventListener('click',()=>selectLevel(btn.dataset.level));
+    });
+}
+
+function renderJourney(){
+    const cur = levelIndex(currentLevel);
+    $('journey-rail').innerHTML = LEVELS.map((l,i)=>{
+        const state = cur<0 ? 'future' : (i<cur ? 'done' : i===cur ? 'current' : 'future');
+        const land = LANDS[i]||LANDS[0];
+        return `
+        <button class="station ${state}" data-level="${escapeHTML(l.code)}"
+                title="${escapeHTML(l.code+' · '+land.name+' — '+land.desc)}">
+            <span class="station-scene"><span class="scene-oval">${landSVG(i)}</span></span>
+            <span class="station-name">${escapeHTML(l.code)}</span>
+            ${state==='current'?'<span class="station-here">Вы здесь</span>':''}
+        </button>`;
+    }).join('');
+    $('journey-rail').querySelectorAll('.station').forEach(btn=>{
+        btn.addEventListener('click',()=>selectLevel(btn.dataset.level));
+    });
+}
+
+function renderLevelBadge(){
+    const idx = levelIndex(currentLevel);
+    $('level-badge-icon').innerHTML = matryoshkaSVG(idx>=0?idx:0, 26);
+    $('level-badge-text').innerText = levelLabel(currentLevel);
+}
+
+function renderWelcome(){
+    const idx = levelIndex(currentLevel);
+    const land = LANDS[idx>=0?idx:0];
+    $('welcome-scene').innerHTML = `<span class="scene-oval" style="width:230px">${landSVG(idx>=0?idx:0)}</span>`;
+    if(idx>=0){
+        $('welcome-title').innerText = 'С возвращением.';
+        $('welcome-sub').innerText = `Ваш уровень: ${currentLevel} · ${land.name}`;
+    }
+}
+
+function openLevelModal(){ $('level-modal').classList.add('open'); }
+function closeLevelModal(){ $('level-modal').classList.remove('open'); }
+
+async function selectLevel(code){
+    if(currentLevel && currentLevel !== code) resetLearningContext();
+    currentLevel = code;
+    localStorage.setItem('level', code);
+    renderLevelBadge(); renderJourney(); renderLevelGrid(); renderWelcome();
+    closeLevelModal();
+    loadTopics();
+    if(currentView==='library') loadResources();
+    if(getAuthToken()){
+        try{
+            await fetch(`${API_BASE}/api/user/level`,{
+                method:'PUT',
+                headers:{'Content-Type':'application/json','Authorization':`Bearer ${getAuthToken()}`},
+                body:JSON.stringify({level:code})
+            });
+        }catch(e){/* không chặn giao diện nếu lưu thất bại */}
+    }
+}
+
+$('btn-level-badge').addEventListener('click', openLevelModal);
+$('btn-close-level').addEventListener('click', closeLevelModal);
+
+/* ==========================================================================
+   ĐIỀU HƯỚNG & NGĂN KÉO
+   ========================================================================== */
+document.querySelectorAll('.viewnav [data-view]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        currentView = btn.dataset.view;
+        document.querySelectorAll('.viewnav [data-view]').forEach(b=>b.classList.toggle('active', b===btn));
+        $('view-write').style.display  = currentView==='write' ? 'flex' : 'none';
+        $('view-library').style.display = currentView==='library' ? 'block' : 'none';
+        if(currentView==='library') loadResources();
+    });
+});
+
+const drawer = $('drawer');
+$('btn-drawer').addEventListener('click', ()=> drawer.classList.toggle('collapsed'));
+function autoCollapseDrawer(){ if(window.innerWidth<=1024) drawer.classList.add('collapsed'); }
+autoCollapseDrawer();
+window.addEventListener('resize', ()=>{ if(window.innerWidth>1024) drawer.classList.remove('collapsed'); });
+
+document.addEventListener('keydown', e=>{
+    if(e.key!=='Escape') return;
+    closeLevelModal();
+    $('login-modal').classList.remove('open');
+    if(typeof closeVocabDrawer === 'function') closeVocabDrawer();
+});
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>showTab(btn.dataset.tab));
+});
+function showTab(name){
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('hidden', p.id!==`tab-${name}`));
+}
+
+/* ==========================================================================
+   TÀI KHOẢN
+   ========================================================================== */
+const loginModal = $('login-modal');
+const authSection = $('auth-section');
+const authMsg = $('auth-msg');
+
+/* ---------- Cloudflare Turnstile ----------
+   Widget được dựng thủ công đúng lúc cửa sổ đăng nhập mở ra, và chỉ dựng MỘT lần
+   (giữ widgetId để những lần mở sau chỉ reset chứ không dựng chồng lên nhau). */
+const TURNSTILE_SITEKEY = '0x4AAAAAAEkul4sYnzSEqgse';
+let turnstileWidgetId = null;
+
+function onTurnstileSuccess(token){ turnstileToken = token; }
+function onTurnstileExpired(){ turnstileToken = null; }
+
+window.mountTurnstile = function(){
+    const box = $('turnstile-box');
+    if(!box || !window.turnstile || !window.__tsReady) return;
+    if(turnstileWidgetId !== null){          // đã dựng rồi → chỉ làm mới
+        turnstile.reset(turnstileWidgetId);
+        turnstileToken = null;
+        return;
+    }
+    turnstileWidgetId = turnstile.render(box, {
+        sitekey: TURNSTILE_SITEKEY,
+        theme: 'light',                       // khớp nền ngà sáng của giao diện
+        language: 'ru',
+        callback: onTurnstileSuccess,
+        'expired-callback': onTurnstileExpired,
+        'error-callback': onTurnstileExpired
+    });
+};
+
+function openLoginModal(){
+    loginModal.classList.add('open');
+    // Thư viện có thể chưa tải xong khi người dùng bấm rất sớm; khi tải xong
+    // onTurnstileReady sẽ tự gọi lại mountTurnstile nên không bị lỡ nhịp.
+    window.mountTurnstile();
+}
+function resetTurnstile(){
+    turnstileToken = null;
+    if(window.turnstile && turnstileWidgetId !== null) turnstile.reset(turnstileWidgetId);
+}
+function say(text, kind){ authMsg.className = 'msg '+(kind||''); authMsg.innerText = text; }
+
+authSection.addEventListener('click', e=>{
+    if(e.target.id==='btn-show-login') openLoginModal();
+});
+$('btn-close-login').addEventListener('click',()=>{
+    loginModal.classList.remove('open'); say('');
+});
+
+$('btn-register').addEventListener('click', async ()=>{
+    const email = $('email-input').value;
+    const password = $('password-input').value;
+    if(password.length < 8){ say('Пароль — не менее 8 знаков.','err'); return; }
+    if(!turnstileToken){ say('Подтвердите, что вы не робот.','err'); return; }
+    say('Создаём аккаунт…','wait');
+    try{
+        const response = await fetch(`${API_BASE}/api/register`,{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({email,password,captchaToken:turnstileToken})
+        });
+        const data = await response.json();
+        if(!response.ok) throw new Error(data.error||'Не удалось создать аккаунт');
+        say('Готово. Проверьте почту для подтверждения.','ok');
+    }catch(error){
+        say(error.message,'err');
+    }finally{
+        resetTurnstile();
+    }
+});
+
+$('btn-login').addEventListener('click', async ()=>{
+    const email = $('email-input').value;
+    const password = $('password-input').value;
+    if(!turnstileToken){ say('Подтвердите, что вы не робот.','err'); return; }
+    say('Входим…','wait');
+    try{
+        const response = await fetch(`${API_BASE}/api/login`,{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({email,password,captchaToken:turnstileToken})
+        });
+        const data = await response.json();
+        if(!response.ok) throw new Error(data.error||'Не удалось войти');
+        localStorage.setItem('token',data.token);
+        localStorage.setItem('user',JSON.stringify(data.user));
+        loginModal.classList.remove('open'); say('');
+        updateUI(data.user);
+    }catch(error){
+        say(error.message,'err');
+    }finally{
+        resetTurnstile();
+    }
+});
+
+function updateUI(user){
+    currentUser = user;
+    if(user){
+        const mail = user.email;
+        authSection.innerHTML = `
+            <div class="acct">
+                <div class="avatar" title="${escapeHTML(mail)}">${escapeHTML(mail.charAt(0))}</div>
+                <div>
+                    <div class="acct-mail">${escapeHTML(mail)}</div>
+                    <button id="btn-logout" class="link-quiet">Выйти</button>
+                </div>
+            </div>`;
+        $('btn-logout').addEventListener('click',()=>{
+            localStorage.removeItem('token'); localStorage.removeItem('user');
+            updateUI(null);
+        });
+        if(user.level && !currentLevel){
+            currentLevel = user.level;
+            localStorage.setItem('level',user.level);
+            renderLevelBadge(); renderJourney(); renderLevelGrid(); renderWelcome(); loadTopics();
+        }
+        loadUserHistory();
+    }else{
+        authSection.innerHTML = `<button id="btn-show-login" class="btn btn-blue">Войти</button>`;
+        $('history-list').innerHTML = `<p class="hint">Войдите, чтобы сохранять работы.</p>`;
+    }
+}
+
+window.addEventListener('load',()=>{
+    loadLevels();
+    const token = getAuthToken();
+    const userStr = localStorage.getItem('user');
+    updateUI(token && userStr ? JSON.parse(userStr) : null);
+});
+
+/* ==========================================================================
+   NHIỆM VỤ (đề bài)
+   ========================================================================== */
+async function loadTopics(){
+    const list = $('topic-list');
+    if(!currentLevel){ list.innerHTML = `<p class="hint">Сначала выберите уровень.</p>`; return; }
+    list.innerHTML = `<p class="hint">Загружаем задания…</p>`;
+    try{
+        const res = await fetch(`${API_BASE}/api/topics?level=${encodeURIComponent(currentLevel)}`);
+        const topics = await res.json();
+        if(!res.ok || !Array.isArray(topics) || topics.length===0){
+            list.innerHTML = `<p class="hint">Для этого уровня заданий пока нет.</p>`;
+            return;
+        }
+        list.innerHTML = topics.map((t,i)=>`
+            <button class="quest">
+                <div class="quest-title">${escapeHTML(t.title)}</div>
+                <div class="quest-meta">
+                    <span class="tag">${escapeHTML(t.category)}</span>
+                    <span class="tag tag-blue">№${i+1}</span>
+                </div>
+            </button>`).join('');
+        list.querySelectorAll('.quest').forEach((btn,i)=>{
+            btn.addEventListener('click',()=>selectTopic(topics[i]));
+        });
+    }catch(e){
+        list.innerHTML = `<p class="hint">Нет связи с сервером.</p>`;
+    }
+}
+
+function resetLearningContext(){
+    // Dàn ý và túi từ vựng luôn gắn với một cặp (trình độ, đề bài) cụ thể.
+    // Đổi một trong hai thì phải bỏ đi, nếu không phần chấm bài sẽ đối chiếu nhầm.
+    currentOutline = null;
+    currentVocabulary = [];
+    resetPanels();
+}
+
+function selectTopic(topic){
+    if(!currentTopic || currentTopic._id !== topic._id) resetLearningContext();
+    currentTopic = topic;
+    $('topic-banner').classList.add('show');
+    $('topic-banner-title').innerText = topic.title;
+    $('topic-banner-text').innerText = topic.prompt_text;
+    $('custom-topic-input').value = '';
+    autoCollapseDrawer();
+    $('topic-banner').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+$('btn-clear-topic').addEventListener('click',()=>{
+    currentTopic = null;
+    resetLearningContext();
+    $('topic-banner').classList.remove('show');
+});
+
+/* ==========================================================================
+   NHẬT KÝ HÀNH TRÌNH
+   ========================================================================== */
+async function loadUserHistory(){
+    const token = getAuthToken();
+    if(!token) return;
+    const box = $('history-list');
+    box.innerHTML = `<p class="hint">Загружаем…</p>`;
+    try{
+        const response = await fetch(`${API_BASE}/api/history`,{headers:{'Authorization':`Bearer ${token}`}});
+        const historyData = await response.json();
+        if(!response.ok) throw new Error('Не удалось загрузить.');
+        if(historyData.length===0){
+            box.innerHTML = `<p class="hint">Здесь появятся ваши работы.</p>`;
+            return;
+        }
+        box.innerHTML = historyData.map(item=>{
+            const snippet = escapeHTML(item.original_text.substring(0,46)) + '…';
+            const dateStr = new Date(item.createdAt).toLocaleDateString('vi-VN');
+            return `
+            <button class="quest" data-essay-id="${escapeHTML(item._id)}">
+                <div class="quest-title">${snippet}</div>
+                <div class="quest-meta"><span>${escapeHTML(dateStr)}</span><span class="tag tag-blue">${escapeHTML(item.level||'')}</span></div>
+            </button>`;
+        }).join('');
+        box.querySelectorAll('.quest').forEach(btn=>{
+            btn.addEventListener('click',()=>loadEssayFromHistory(btn.dataset.essayId));
+        });
+    }catch(error){
+        box.innerHTML = `<p class="hint">Не удалось загрузить.</p>`;
+    }
+}
+
+async function loadEssayFromHistory(essayId){
+    const token = getAuthToken();
+    if(!token) return;
+    try{
+        const response = await fetch(`${API_BASE}/api/essay/${essayId}`,{headers:{'Authorization':`Bearer ${token}`}});
+        if(!response.ok) throw new Error('Работа не найдена.');
+        const essay = await response.json();
+        $('editor-content').innerHTML = textToHtmlLines(essay.corrected_text);
+        updateWordCount();
+        currentOutline = essay.outline || null;
+        currentVocabulary = Array.isArray(essay.vocabulary) ? essay.vocabulary.slice() : [];
+        mergeVocabulary(((essay.feedback||{}).recommended_vocabulary||[]).map(v=>({...v,_source:'correction'})));
+        if(currentOutline) renderOutlineResult(currentOutline);
+        renderVocabularyTab();
+        renderCorrectionResult(essay.feedback||{});
+        showTab('overview');
+        autoCollapseDrawer();
+    }catch(error){
+        $('tab-overview').innerHTML = emptyState(bearSVG(80,'care'),'Не удалось открыть','Попробуйте другую работу.');
+    }
+}
+
+/* ==========================================================================
+   LOADING CÓ KỂ CHUYỆN — Мишка đeo kính đọc bài
+   ========================================================================== */
+function startThinking(panelId, lines){
+    const panel = $(panelId);
+    let i = 0;
+    panel.innerHTML = `
+        <div class="empty">
+            ${bearSVG(96,'read')}
+            <div class="thinking-line" id="thinking-line">${escapeHTML(lines[0])}</div>
+            <div class="thinking-dots"><span></span><span></span><span></span></div>
+        </div>`;
+    clearInterval(thinkingTimer);
+    thinkingTimer = setInterval(()=>{
+        i = (i+1) % lines.length;
+        const el = $('thinking-line');
+        if(!el){ clearInterval(thinkingTimer); return; }
+        el.style.opacity = 0;
+        setTimeout(()=>{ el.innerText = lines[i]; el.style.opacity = 1; }, 190);
+    }, 2000);
+}
+function stopThinking(){ clearInterval(thinkingTimer); thinkingTimer = null; }
+
+/* ==========================================================================
+   DÀN Ý — chỉ gợi ý hướng, không viết hộ
+   ========================================================================== */
+$('btn-outline').addEventListener('click', async ()=>{
+    const token = getAuthToken();
+    if(!token){ openLoginModal(); return; }
+    const topicText = currentTopic ? currentTopic.prompt_text : $('custom-topic-input').value.trim();
+    if(!topicText){
+        showTab('outline');
+        $('tab-outline').innerHTML = emptyState(bearSVG(84,'think'),'Нет темы','Выберите задание или введите свою тему.');
+        return;
+    }
+    if(!currentLevel){ openLevelModal(); return; }
+
+    const btn = $('btn-outline');
+    btn.disabled = true; btn.innerText = 'Составляем…';
+    showTab('outline');
+    startThinking('tab-outline',[
+        `Строим план · ${currentLevel}…`,
+        'Подбираем слова…',
+        'Выстраиваем структуру…'
+    ]);
+
+    try{
+        const res = await fetch(`${API_BASE}/api/outline`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+            body:JSON.stringify({
+                topic: topicText,
+                level: currentLevel,
+                topicId: currentTopic ? currentTopic._id : null
+            })
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error||'Сервер не отвечает');
+        stopThinking();
+        currentOutline = data;
+        currentVocabulary = [];
+        mergeVocabulary(data.vocabulary);
+        renderOutlineResult(data);
+        renderVocabularyTab();
+    }catch(error){
+        stopThinking();
+        $('tab-outline').innerHTML = emptyState(bearSVG(80,'care'),'Не получилось', error.message);
+    }finally{
+        btn.disabled = false; btn.innerText = 'Составить план';
+    }
+});
+
+function renderOutlineResult(data){
+    const o = data.outline || {};
+    const li = arr => (arr||[]).map(x=>`<li>${escapeHTML(x)}</li>`).join('');
+
+    // Model đôi khi tự đánh số trong heading_ru (vd "1. Как глобализация…") dù giao diện
+    // đã tự đánh số riêng — bỏ số đó đi để tránh hiển thị lặp đôi kiểu "1.1. …".
+    const stripNum = s => String(s||'').replace(/^\s*\d+[.)]\s*/, '');
+    const body = (o.body||[]).map((s,i)=>`
+        <div class="plan-sec enter" style="animation-delay:${i*70}ms">
+            <p class="plan-sec-h"><em>${i+1}.</em>${escapeHTML(stripNum(s.heading_ru))}</p>
+            <ul class="plan-points">${li(s.points)}</ul>
+            ${s.grammar_focus_ru?`<p class="plan-gram"><b>Грамматика:</b> ${escapeHTML(s.grammar_focus_ru)}</p>`:''}
+        </div>`).join('');
+
+    const patterns = (data.speech_patterns||[]).map(p=>`
+        <div class="pattern">
+            <p class="pattern-ru">${escapeHTML(p.pattern_ru||'')}</p>
+            <p class="pattern-why">${escapeHTML(p.purpose_ru||'')}</p>
+        </div>`).join('');
+
+    const grammar = (data.grammar||[]).map(g=>`
+        <div class="gram-card">
+            <span class="gram-name">${escapeHTML(g.name_ru||'')}</span>
+            <span class="lvl-chip">${escapeHTML(g.level||'')}</span>
+            <p class="gram-why">${escapeHTML(g.why_ru||'')}</p>
+            ${g.example_ru?`<p class="gram-ex">${escapeHTML(g.example_ru)}</p>`:''}
+        </div>`).join('');
+
+    const tips = (data.writing_tips_ru||[]).map(t=>`<li>${escapeHTML(t)}</li>`).join('');
+
+    $('tab-outline').innerHTML = `
+        <div class="enter">
+            <div class="level-note">${matryoshkaSVG(Math.max(0,levelIndex(data.level||currentLevel)),22)}
+                <span>Уровень ${escapeHTML(data.level||currentLevel||'')} · ${escapeHTML(data.trki_name||'')}${data.target_length_ru?` · ${escapeHTML(data.target_length_ru)}`:''}</span></div>
+
+            ${data.topic_restated_ru?`<div class="fb-block"><p class="fb-h">Задание своими словами</p><p class="fb-ru">${escapeHTML(data.topic_restated_ru)}</p></div>`:''}
+
+            <h4 class="outline-h"><span class="num">I</span>Введение</h4>
+            <ul class="idea-list">${li(o.introduction)}</ul>
+
+            <h4 class="outline-h"><span class="num">II</span>Основная часть</h4>
+            ${body}
+
+            <h4 class="outline-h"><span class="num">III</span>Заключение</h4>
+            <ul class="idea-list">${li(o.conclusion)}</ul>
+
+            ${patterns?`<h4 class="section-h serif">Речевые образцы</h4>${patterns}`:''}
+            ${grammar?`<h4 class="section-h serif">Грамматика для этой темы</h4>${grammar}`:''}
+            ${tips?`<h4 class="section-h serif">Советы</h4><ul class="idea-list">${tips}</ul>`:''}
+
+            <p class="note-fine">Это только план. Текст пишете вы.</p>
+        </div>`;
+}
+
+/* ==========================================================================
+   TÚI TỪ VỰNG — mỗi từ là một thẻ học, bấm vào mở ngăn kéo chi tiết
+   ========================================================================== */
+function renderVocabularyTab(){
+    const box = $('tab-vocab');
+    if(!currentVocabulary.length){
+        box.innerHTML = emptyState(matryoshkaSVG(2,70),'Пока пусто','Новые слова появятся здесь.');
+        return;
+    }
+
+    // Nhóm theo nguồn gốc: từ dàn ý (chuẩn bị) và từ phần chấm bài (bù chỗ còn thiếu)
+    const fromPlan = currentVocabulary.filter(v => v._source !== 'correction');
+    const fromWork = currentVocabulary.filter(v => v._source === 'correction');
+    const base = currentLevel || '';
+
+    // Thẻ chỉ giữ 3 thông tin: từ · cấp độ · nghĩa ngắn. Mọi chi tiết còn lại
+    // nằm trong ngăn kéo, nên lưới từ vựng luôn sạch và dễ quét mắt.
+    const card = (v,i) => `
+        <button class="vocab-card enter" data-term="${escapeHTML(v.term||'')}" style="animation-delay:${i*35}ms">
+            <span class="lvl-chip ${v.difficulty&&v.difficulty!==base?'up':''}">${escapeHTML(v.difficulty||'')}</span>
+            <div class="vocab-term">${escapeHTML(v.term||'')}</div>
+            <div class="vocab-sub">${escapeHTML(v.short_meaning_ru||'')}</div>
+        </button>`;
+
+    box.innerHTML = `
+        <div class="enter">
+            ${fromPlan.length?`<p class="vocab-group-h">Из плана</p><div class="vocab-grid">${fromPlan.map(card).join('')}</div>`:''}
+            ${fromWork.length?`<p class="vocab-group-h">Чего не хватило в тексте</p><div class="vocab-grid">${fromWork.map(card).join('')}</div>`:''}
+        </div>`;
+
+    box.querySelectorAll('.vocab-card').forEach(btn=>{
+        btn.addEventListener('click',()=>openVocabDetail(btn.dataset.term));
+    });
+}
+
+/* ---------- Ngăn kéo chi tiết từ vựng ---------- */
+const vocabScrim = $('vocab-scrim');
+const vocabDrawer = $('vocab-drawer');
+function closeVocabDrawer(){
+    vocabDrawer.classList.remove('open');
+    vocabScrim.classList.remove('open');
+    vocabDrawer.setAttribute('aria-hidden','true');
+}
+$('vd-close').addEventListener('click', closeVocabDrawer);
+vocabScrim.addEventListener('click', closeVocabDrawer);
+
+async function openVocabDetail(term){
+    const token = getAuthToken();
+    if(!token){ openLoginModal(); return; }
+
+    const item = currentVocabulary.find(v => v.term === term) || { term };
+    const topic = learningTopic();
+    const cacheKey = `${term}|${currentLevel}|${topic?topic.prompt:''}`;
+
+    vocabDrawer.classList.add('open');
+    vocabScrim.classList.add('open');
+    vocabDrawer.setAttribute('aria-hidden','false');
+    $('vd-term').innerText = term;
+    $('vd-meta').innerHTML = '';
+
+    // Đã xem từ này rồi thì hiện ngay, không gọi AI lần nữa (mục 23/24)
+    if(vocabDetailCache.has(cacheKey)){ renderVocabDetail(vocabDetailCache.get(cacheKey)); return; }
+
+    $('vd-body').innerHTML = `<div class="empty">${bearSVG(80,'read')}
+        <div class="thinking-line">Ищем слово…</div>
+        <div class="thinking-dots"><span></span><span></span><span></span></div></div>`;
+
+    try{
+        const res = await fetch(`${API_BASE}/api/vocabulary/detail`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+            body:JSON.stringify({
+                term,
+                level: currentLevel,
+                topic,
+                topicId: currentTopic ? currentTopic._id : null,
+                essay: $('editor-content').innerText.trim().slice(0,3000),
+                context: item.relevance_ru || ''
+            })
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error||'Не удалось загрузить слово');
+        vocabDetailCache.set(cacheKey, data);
+        renderVocabDetail(data);
+    }catch(err){
+        $('vd-body').innerHTML = `<p class="hint">${escapeHTML(err.message)}</p>`;
+    }
+}
+
+function renderVocabDetail(d){
+    $('vd-term').innerText = d.headword || d.term || '';
+    $('vd-meta').innerHTML = `
+        ${d.cefr?`<span class="lvl-chip">${escapeHTML(d.cefr)}</span>`:''}
+        ${d.part_of_speech_ru?`<span class="vd-form">${escapeHTML(d.part_of_speech_ru)}</span>`:''}
+        ${d.gender_ru?`<span class="vd-form">род: <b>${escapeHTML(d.gender_ru)}</b></span>`:''}
+        ${d.register_ru?`<span class="vd-form">${escapeHTML(d.register_ru)}</span>`:''}`;
+
+    const sec = (title, html) => html ? `<div class="vd-sec"><p class="vd-h">${title}</p>${html}</div>` : '';
+    const forms = (d.forms||[]).map(f=>`<span class="vd-form">${escapeHTML(f.label_ru||'')}: <b>${escapeHTML(f.form||'')}</b></span>`).join('');
+    const colls = (d.collocations||[]).map(c=>`<li>${escapeHTML(c.phrase_ru||'')}${c.gloss_vi?` <span style="color:var(--ink-faint)">— ${escapeHTML(c.gloss_vi)}</span>`:''}</li>`).join('');
+    const exs = (d.examples||[]).map(e=>`
+        <div class="vd-ex">
+            <p class="vd-ex-ru">${escapeHTML(e.ru||'')}</p>
+            ${e.vi?`<p class="vd-ex-vi">${escapeHTML(e.vi)}</p>`:''}
+        </div>`).join('');
+
+    $('vd-body').innerHTML = `
+        ${sec('Произношение', d.pronunciation
+            ? `<p class="vd-pron">${escapeHTML(d.pronunciation)}</p>${d.stress_note_ru?`<p class="vd-vi">${escapeHTML(d.stress_note_ru)}</p>`:''}`
+            : '')}
+        ${sec('Значение', `<p class="vd-p">${escapeHTML(d.meaning_ru||'')}</p>${d.meaning_vi?`<p class="vd-vi">vi: ${escapeHTML(d.meaning_vi)}</p>`:''}`)}
+        ${sec('Формы', forms?`<div class="vd-forms">${forms}</div>`:'')}
+        ${sec('Как употреблять', d.usage_ru?`<p class="vd-p">${escapeHTML(d.usage_ru)}</p>`:'')}
+        ${sec('Грамматическая информация', d.grammar_note_ru?`<p class="vd-p">${escapeHTML(d.grammar_note_ru)}</p>`:'')}
+        ${sec('Сочетаемость', colls?`<ul class="vd-list">${colls}</ul>`:'')}
+        ${sec('Примеры', exs)}
+        ${sec('Как использовать в этом эссе', d.why_relevant_ru?`<p class="vd-p">${escapeHTML(d.why_relevant_ru)}</p>`:'')}`;
+}
+
+/* ==========================================================================
+   CHẤM BÀI
+   ========================================================================== */
+$('btn-correct').addEventListener('click', async ()=>{
+    const text = $('editor-content').innerText.trim();
+    const btn = $('btn-correct');
+    const token = getAuthToken();
+
+    if(!text){
+        showTab('overview');
+        $('tab-overview').innerHTML = emptyState(bearSVG(84,'idle'),'Пустой лист','Напишите несколько строк по-русски.');
+        $('editor-content').focus();
+        return;
+    }
+    if(!token){ openLoginModal(); return; }
+    if(!currentLevel){ openLevelModal(); return; }
+
+    btn.disabled = true; btn.innerText = 'Проверяем…';
+    showTab('overview');
+    startThinking('tab-overview',[
+        `Проверяем текст · ${currentLevel}…`,
+        'Смотрим грамматику…',
+        currentOutline ? 'Сверяем с планом…' : 'Смотрим логику текста…',
+        'Считаем баллы по ТРКИ…'
+    ]);
+
+    try{
+        const response = await fetch(`${API_BASE}/api/correct`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+            // Gửi kèm cả ngữ cảnh học tập: đề bài, dàn ý và túi từ vựng đã xin trước đó
+            body:JSON.stringify({
+                text,
+                level: currentLevel,
+                topicId: currentTopic ? currentTopic._id : null,
+                topic: learningTopic(),
+                outline: currentOutline,
+                vocabulary: currentVocabulary
+            })
+        });
+        const data = await response.json();
+        if(!response.ok) throw new Error(data.error||'Сервер не отвечает');
+        stopThinking();
+        $('editor-content').innerHTML = textToHtmlLines(data.corrected_text);
+        updateWordCount();
+        // Từ mà bài viết còn thiếu được bổ sung thẳng vào túi từ vựng (mục 7)
+        mergeVocabulary((data.recommended_vocabulary||[]).map(v=>({...v,_source:'correction'})));
+        renderCorrectionResult(data);
+        renderVocabularyTab();
+        loadUserHistory();
+    }catch(error){
+        stopThinking();
+        $('tab-overview').innerHTML = emptyState(bearSVG(80,'care'),'Не получилось', error.message);
+    }finally{
+        btn.disabled = false; btn.innerText = 'Проверить текст';
+    }
+});
+
+/* ---------- Điểm số ---------- */
+function renderScoring(scoring){
+    if(!scoring || !scoring.method || scoring.method==='none'){
+        return `<p class="hint">Для этого уровня шкала ТРКИ недоступна — только словесный разбор.</p>`;
+    }
+
+    if(scoring.method==='deduction'){
+        const pct = Math.max(0, Math.min(100, Math.round((scoring.final_score/scoring.total_score)*100)));
+        const ok = scoring.is_valid;
+        const great = ok && pct>=85;
+        return `
+        <div class="verdict enter">
+            ${great?`<span class="verdict-firebird">${firebirdSVG(120)}</span>`:''}
+            <div style="position:relative;z-index:1;">
+                <div class="verdict-score serif">${escapeHTML(String(scoring.final_score))}<small>/${escapeHTML(String(scoring.total_score))}</small></div>
+                <div class="verdict-label">${escapeHTML(scoring.trki_name||'ТРКИ')} · субтест «Письмо»</div>
+            </div>
+            <span class="pill ${ok?'pill-ok':'pill-warn'}">${ok?'Работа засчитана':'Работа не засчитана'}</span>
+        </div>
+        <div class="bar" style="margin-bottom:1.1rem;"><div class="bar-fill" style="width:${pct}%"></div></div>
+        <ul class="ledger">
+            <li><span>КЗО — ${scoring.kzo_count} × ${scoring.kzo_penalty_each}</span><b>−${scoring.kzo_count*scoring.kzo_penalty_each}</b></li>
+            <li><span>КНЗО — ${scoring.knzo_count} × ${scoring.knzo_penalty_each}</span><b>−${scoring.knzo_count*scoring.knzo_penalty_each}</b></li>
+            ${scoring.bonus_awarded?`<li><span>Бонус — ${escapeHTML(scoring.bonus_reason||'')}</span><b>+${scoring.bonus_awarded}</b></li>`:''}
+        </ul>
+        ${scoring.validity_note?`<div class="advice" style="background:rgba(212,80,106,.1);border-color:rgba(212,80,106,.35);color:#B33E56;"><span>!</span><span>${escapeHTML(scoring.validity_note)}</span></div>`:''}`;
+    }
+
+    const params = (scoring.parameters||[]).map((p,i)=>{
+        const pct = p.max_score ? Math.round((p.score/p.max_score)*100) : 0;
+        return `
+        <div class="crit enter" style="animation-delay:${i*80}ms">
+            <div class="crit-head">
+                <span class="crit-name">${escapeHTML(p.name)}${p.capped?' <span class="crit-cap">· ограничено из-за КЗО</span>':''}</span>
+                <span class="crit-val">${escapeHTML(String(p.score))}/${escapeHTML(String(p.max_score))}</span>
+            </div>
+            <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+            ${p.comment?`<p class="crit-note">${escapeHTML(p.comment)}</p>`:''}
+        </div>`;
+    }).join('');
+    const total = scoring.total_score_max ? Math.round((scoring.total_score_earned/scoring.total_score_max)*100) : 0;
+    return `
+        <div class="verdict enter">
+            ${total>=85?`<span class="verdict-firebird">${firebirdSVG(120)}</span>`:''}
+            <div style="position:relative;z-index:1;">
+                <div class="verdict-score serif">${escapeHTML(String(scoring.total_score_earned))}<small>/${escapeHTML(String(scoring.total_score_max))}</small></div>
+                <div class="verdict-label">${escapeHTML(scoring.trki_name||'ТРКИ')} · оценка по параметрам</div>
+            </div>
+            ${scoring.kzo_cap_applied
+                ? '<span class="pill pill-warn">Есть КЗО — параметр языка ограничен</span>'
+                : '<span class="pill pill-ok">Ошибок, мешающих пониманию, нет</span>'}
+        </div>
+        <div class="bar" style="margin-bottom:1.25rem;"><div class="bar-fill" style="width:${total}%"></div></div>
+        ${params}`;
+}
+
+function renderCorrectionResult(data){
+    const errors = data.errors||[];
+    const upgrades = data.upgrades||[];
+    const kzo = errors.filter(e=>e.error_class==='КЗО').length;
+    const mood = errors.length===0 ? 'cheer' : (kzo>0 ? 'care' : 'idle');
+
+    // Tương thích ngược: bài cũ trong nhật ký chỉ có overall_feedback (tiếng Việt)
+    const feedbackRu = data.overall_feedback_ru || data.overall_feedback || '';
+    const lvl = data.level || currentLevel || '';
+    const list = (arr, cls) => (arr||[]).map(x=>`<li>${escapeHTML(x)}</li>`).join('') ;
+
+    const sec = (title, inner, cls) => inner ? `<div class="fb-block ${cls||''}"><p class="fb-h">${title}</p>${inner}</div>` : '';
+
+    const coverage = (data.outline_coverage||[]).map(c=>{
+        const mark = c.status==='раскрыто' ? 'ok' : c.status==='частично' ? 'half' : 'no';
+        return `<div class="cov"><span class="cov-dot ${mark}"></span>
+            <span><b>${escapeHTML(c.point_ru||'')}</b><small>${escapeHTML(c.comment_ru||'')}</small></span></div>`;
+    }).join('');
+
+    const vocabUse = (data.vocabulary_usage||[]).map(v=>`
+        <div class="cov"><span class="cov-dot ${v.used?'ok':'no'}"></span>
+            <span><b>${escapeHTML(v.term||'')}</b><small>${escapeHTML(v.comment_ru||'')}</small></span></div>`).join('');
+
+    const reqs = (data.essay_requirements_check||[]).map((r,i)=>`
+        <li class="enter" style="animation-delay:${i*60}ms">
+            <span class="cov-dot ${r.addressed?'ok':'no'}"></span>
+            <span><b>${escapeHTML(r.requirement)}</b>${r.note?` — <span style="color:var(--ink-soft)">${escapeHTML(r.note)}</span>`:''}</span>
+        </li>`).join('');
+
+    $('tab-overview').innerHTML = `
+        <div style="display:flex;gap:1rem;align-items:flex-start;margin-bottom:1.1rem;" class="enter">
+            <div style="flex-shrink:0;">${bearSVG(72,mood)}</div>
+            <div style="min-width:0;">
+                <p class="fb-ru" style="color:var(--blue);font-size:1.02rem;font-weight:600;margin:0;">${escapeHTML(feedbackRu)}</p>
+            </div>
+        </div>
+
+        ${data.level_position_ru?`<div class="level-note">${matryoshkaSVG(Math.max(0,levelIndex(lvl)),22)}
+            <span style="font-weight:600;line-height:1.6;">${escapeHTML(data.level_position_ru)}</span></div>`:''}
+
+        ${renderScoring(data.scoring)}
+
+        ${sec('Сильные стороны', list(data.strengths_ru)?`<ul class="fb-list">${list(data.strengths_ru)}</ul>`:'', 'good')}
+        ${sec('Что улучшить', `
+            ${data.main_problem_ru?`<p class="fb-ru" style="margin-bottom:.5rem;">${escapeHTML(data.main_problem_ru)}</p>`:''}
+            ${list(data.weaknesses_ru)?`<ul class="fb-list">${list(data.weaknesses_ru)}</ul>`:''}
+            ${list(data.vocabulary_to_improve_ru)?`<p class="fb-mini">Лексика: ${escapeHTML(data.vocabulary_to_improve_ru.join(' · '))}</p>`:''}
+            ${list(data.grammar_to_improve_ru)?`<p class="fb-mini">Грамматика: ${escapeHTML(data.grammar_to_improve_ru.join(' · '))}</p>`:''}`, 'warn')}
+
+        ${coverage?`<h4 class="section-h serif">Текст и план</h4>${coverage}`:''}
+        ${vocabUse?`<h4 class="section-h serif">Лексика из плана</h4>${vocabUse}`:''}
+        ${reqs?`<h4 class="section-h serif">Компоненты эссе</h4><ul class="reqs">${reqs}</ul>`:''}
+
+        ${sec('Следующий шаг', list(data.next_steps_ru)?`<ol class="fb-steps">${list(data.next_steps_ru)}</ol>`:'')}`;
+
+    /* ---------- Tab lỗi: lỗi thật ở trên, gợi ý nâng cấp ở dưới ---------- */
+    const errHTML = errors.map((err,i)=>{
+        const cls = err.error_class==='КЗО' ? 'chip-kzo' : err.error_class==='КНЗО' ? 'chip-knzo' : '';
+        const clsLabel = err.error_class==='КЗО' ? 'КЗО · мешает понять'
+                        : err.error_class==='КНЗО' ? 'КНЗО · смысл понятен' : '';
+        const type = err.error_type_ru || err.error_type || '';
+        const why  = err.explanation_ru || err.explanation || '';
+        const tip  = err.rule_tip_ru || err.rule_tip || '';
+        const rel  = (err.related_vocabulary||[]).filter(Boolean);
+        return `
+        <li class="err ${err.error_class==='КНЗО'?'knzo':''} enter" style="animation-delay:${i*55}ms">
+            <div class="err-line">
+                <span class="was">${escapeHTML(err.original)}</span>
+                <span class="arrow">→</span>
+                <span class="now">${escapeHTML(err.correction)}</span>
+                ${type?`<span class="chip chip-type">${escapeHTML(type)}</span>`:''}
+                ${clsLabel?`<span class="chip ${cls}">${escapeHTML(clsLabel)}</span>`:''}
+            </div>
+            <p class="err-why">${escapeHTML(why)}</p>
+            ${tip?`<p class="err-tip"><span>${escapeHTML(tip)}</span></p>`:''}
+            ${err.better_alternative_ru?`<p class="err-alt"><b>Лучше сказать:</b> ${escapeHTML(err.better_alternative_ru)}</p>`:''}
+            ${rel.length?`<p class="err-alt"><b>Пригодится:</b> ${escapeHTML(rel.join(' · '))}</p>`:''}
+            ${err.vi_gloss?`<p class="err-vi">${escapeHTML(err.vi_gloss)}</p>`:''}
+        </li>`;
+    }).join('');
+
+    const upgHTML = upgrades.map((u,i)=>`
+        <div class="upg enter" style="animation-delay:${i*55}ms">
+            <div class="upg-line">
+                <span class="upg-from">${escapeHTML(u.original||'')}</span>
+                <span class="arrow">→</span>
+                <span class="upg-to">${escapeHTML(u.suggestion||'')}</span>
+                <span class="chip chip-upg">${escapeHTML(u.upgrade_type||'')}</span>
+            </div>
+            <p class="err-why">${escapeHTML(u.explanation_ru||'')}</p>
+        </div>`).join('');
+
+    const noErr = emptyState(firebirdSVG(150),'Ошибок нет','Исправлять нечего.');
+    $('tab-errors').innerHTML = `
+        ${errors.length ? `<ul class="errs">${errHTML}</ul>` : noErr}
+        ${upgHTML?`<h4 class="section-h serif">Верно, но можно точнее</h4>
+            <p class="note-fine" style="margin:-.4rem 0 .8rem;">Это не ошибки и баллы за них не снимаются.</p>
+            ${upgHTML}`:''}`;
+}
+
+/* ==========================================================================
+   THƯ VIỆN & XỬ LÝ LOAD SÁCH (CÓ KẾT NỐI VỚI HÀM openBook)
+   ========================================================================== */
+function populateResourceFilters(){
+    const sel = $('resource-level-filter');
+    if(sel.options.length <= 1){
+        LEVELS.forEach((l,i)=>{
+            const opt = document.createElement('option');
+            opt.value = l.code;
+            opt.innerText = `${l.code} · ${LANDS[i]?LANDS[i].name:''}`;
+            sel.appendChild(opt);
+        });
+    }
+}
+$('resource-level-filter').addEventListener('change', loadResources);
+$('resource-category-filter').addEventListener('change', loadResources);
+
+// Danh sach "razdel" duoc sinh tu chinh du lieu sach tra ve, nen khong bao gio
+// lech voi noi dung that trong thu vien nhu ban cu (hard-code 4 lua chon).
+const KNOWN_CATEGORIES = new Set();
+function syncCategoryFilter(){
+    const sel = $('resource-category-filter');
+    if(!sel) return;
+    const current = sel.value;
+    const cats = [...KNOWN_CATEGORIES].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru'));
+    sel.innerHTML = `<option value="">Все разделы</option>`
+        + cats.map(c=>`<option${c===current?' selected':''}>${escapeHTML(c)}</option>`).join('');
+}
+
+async function loadResources(){
+    populateResourceFilters();
+    const level = $('resource-level-filter').value;
+    const category = $('resource-category-filter').value;
+    const grid = $('resource-grid');
+    grid.innerHTML = `<p class="hint">Загружаем…</p>`;
+    try{
+        const params = new URLSearchParams();
+        if(level) params.set('level',level);
+        if(category) params.set('category',category);
+        const res = await fetch(`${API_BASE}/api/resources?${params.toString()}`);
+        const resources = await res.json();
+        if(!res.ok || resources.length===0){
+            grid.innerHTML = `<div style="grid-column:1/-1;">${emptyState(bookshelfSVG(),'Полка пуста','Попробуйте снять фильтры.')}</div>`;
+            return;
+        }
+        grid.innerHTML = resources.map((r,i)=> {
+            KNOWN_CATEGORIES.add(r.category || '');
+            // Kiểm tra xem sách có file lưu cục bộ không, nếu có gọi openBook()
+            const actionBtn = r.hasFile 
+                ? `<button class="book-link" style="border:none;cursor:pointer;" data-title="${escapeHTML(r.title||'')}" onclick="openBook('${r._id}', event, this.dataset.title)">Читать</button>`
+                : `<a class="book-link" href="${encodeURI(r.fileUrl)}" target="_blank" rel="noopener noreferrer">Открыть ссылку</a>`;
+
+            return `
+            <article class="book enter" style="animation-delay:${i*60}ms">
+                <div class="book-meta">
+                    <span class="tag">${escapeHTML(r.category)}</span>
+                    <span class="tag tag-blue">${escapeHTML(r.level==='all'?'Все уровни':r.level)}</span>
+                </div>
+                <h3 class="serif">${escapeHTML(r.title)}</h3>
+                <p>${escapeHTML(r.description)}</p>
+                ${actionBtn}
+            </article>`
+        }).join('');
+        syncCategoryFilter();
+    }catch(e){
+        grid.innerHTML = `<div style="grid-column:1/-1;">${emptyState(bearSVG(80,'care'),'Не удалось загрузить','Нет связи с сервером.')}</div>`;
+    }
+}
+
+/* ==========================================================================
+   ĐẾM TỪ
+   ========================================================================== */
+function updateWordCount(){
+    const t = $('editor-content').innerText.trim();
+    const n = t ? t.split(/\s+/).filter(Boolean).length : 0;
+    $('word-count').innerText = `${n} слов`;
+}
+$('editor-content').addEventListener('input', updateWordCount);
+
+/* ==========================================================================
+   ЧИТАЛКА — PDF.js
+   Ba tính năng mới so với bản trước: закладка (nhớ trang), nhảy thẳng tới
+   trang bất kỳ, và "продолжить чтение" từ chỗ đọc dở. Tất cả lưu bằng
+   localStorage theo resourceId nên chưa cần đụng vào backend — nhưng cấu trúc
+   readerStore() được tách riêng để sau này chuyển sang lưu server-side chỉ cần
+   thay ruột hàm, không phải sửa chỗ nào khác.
+   ========================================================================== */
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+let pdfDoc = null;
+let currentPage = 1;
+let isRendering = false;
+let isMobile = window.innerWidth <= 768;
+let currentScale = 1.3;
+let currentBookId = null;
+
+/* ---------- Lưu trữ: закладки + последняя страница ---------- */
+const READER_KEY = 'ruswrite:reader';
+function readerStore(){
+    try{ return JSON.parse(localStorage.getItem(READER_KEY)) || {}; }
+    catch(e){ return {}; }
+}
+function readerSave(id, patch){
+    if(!id) return;
+    const all = readerStore();
+    all[id] = Object.assign({}, all[id], patch);
+    try{ localStorage.setItem(READER_KEY, JSON.stringify(all)); }catch(e){}
+}
+function readerGet(id){ return readerStore()[id] || {}; }
+
+window.addEventListener('resize', () => {
+    const mobileCheck = window.innerWidth <= 768;
+    if (isMobile !== mobileCheck && pdfDoc) {
+        isMobile = mobileCheck;
+        renderPages();
+    }
+});
+
+async function openBook(id, event, title) {
+    if(event) event.preventDefault();
+    pdfDoc = null; currentPage = 1; currentScale = isMobile ? 1.0 : 1.3;
+    currentBookId = id;
+
+    const readerModal = $('book-reader-modal');
+    const loader = $('reader-loader');
+    const bookWrapper = $('book-wrapper');
+
+    readerModal.classList.add('show');
+    readerModal.setAttribute('aria-hidden','false');
+    loader.style.display = 'block';
+    loader.innerText = 'Открываем книгу…';
+    bookWrapper.style.display = 'none';
+    $('reader-title').innerText = title || '';
+    $('page-num').value = '0';
+    $('page-count').innerText = '0';
+    dismissResume();
+
+    try {
+        const url = `${API_BASE}/api/resources/${id}/pdf`;
+        const loadingTask = pdfjsLib.getDocument(url);
+        pdfDoc = await loadingTask.promise;
+
+        $('page-count').innerText = pdfDoc.numPages;
+        loader.style.display = 'none';
+        bookWrapper.style.display = 'flex';
+        renderPages();
+        offerResume();
+    } catch (error) {
+        loader.innerHTML = `Не удалось открыть книгу.
+            <button onclick="closeBookReader()" class="btn btn-soft btn-sm" style="margin-left:.5rem;">Закрыть</button>`;
+    }
+}
+
+/* ---------- «Продолжить чтение»: một dòng nhỏ, không phải popup chặn đường ---------- */
+function offerResume(){
+    const saved = readerGet(currentBookId);
+    const target = saved.bookmark || saved.lastPage;
+    if(!target || target <= 1 || target > pdfDoc.numPages) return;
+    // Đang ở sẵn chỗ đó rồi thì không việc gì phải nhắc
+    if(Math.abs(target - currentPage) <= 1) return;
+
+    $('reader-resume-text').innerText = saved.bookmark
+        ? `Закладка на ${saved.bookmark}-й странице.`
+        : `Вы остановились на ${saved.lastPage}-й странице.`;
+    $('btn-resume').dataset.page = target;
+    $('btn-resume').innerText = `Продолжить с ${target}-й страницы`;
+    $('reader-resume').classList.add('show');
+}
+function resumeReading(){
+    const p = parseInt($('btn-resume').dataset.page, 10);
+    if(p) goToPage(p);
+    dismissResume();
+}
+function dismissResume(){ $('reader-resume').classList.remove('show'); }
+
+/* ---------- Закладка ---------- */
+function firstVisiblePage(){
+    if(isMobile) return currentPage;
+    return (currentPage % 2 === 0) ? currentPage : Math.max(1, currentPage - 1);
+}
+function toggleBookmark(){
+    if(!pdfDoc || !currentBookId) return;
+    const saved = readerGet(currentBookId);
+    const here = firstVisiblePage();
+    // Bấm lại đúng trang đang đánh dấu = bỏ đánh dấu; ở trang khác = chuyển dấu sang đây
+    const next = (saved.bookmark === here) ? null : here;
+    readerSave(currentBookId, { bookmark: next });
+    syncBookmarkButton();
+}
+function syncBookmarkButton(){
+    const btn = $('btn-bookmark');
+    if(!btn) return;
+    const saved = readerGet(currentBookId);
+    const on = !!saved.bookmark && saved.bookmark === firstVisiblePage();
+    btn.classList.toggle('bm-on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'В закладках' : (saved.bookmark ? `Закладка на ${saved.bookmark}-й · перенести сюда` : 'Добавить закладку');
+}
+
+function closeBookReader() {
+    const modal = $('book-reader-modal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden','true');
+    setTimeout(() => {
+        pdfDoc = null;
+        currentBookId = null;
+        const canvasLeft = $('pdf-canvas-left');
+        const canvasRight = $('pdf-canvas-right');
+        if(canvasLeft) canvasLeft.getContext('2d').clearRect(0, 0, canvasLeft.width, canvasLeft.height);
+        if(canvasRight) canvasRight.getContext('2d').clearRect(0, 0, canvasRight.width, canvasRight.height);
+        $('reader-loader').innerText = 'Открываем книгу…';
+    }, 300);
+}
+
+async function renderPages() {
+    if (isRendering || !pdfDoc) return;
+    isRendering = true;
+
+    const wrapper = $('book-wrapper');
+    wrapper.classList.add('turning');
+
+    const canvasLeft = $('pdf-canvas-left');
+    const canvasRight = $('pdf-canvas-right');
+    const ctxLeft = canvasLeft.getContext('2d');
+    const ctxRight = canvasRight.getContext('2d');
+
+    try {
+        if (isMobile) {
+            wrapper.classList.add('single');
+            await renderSinglePage(currentPage, canvasRight, ctxRight);
+            setPageValue(currentPage);
+        } else {
+            let leftPageNum = (currentPage % 2 === 0) ? currentPage : currentPage - 1;
+            let rightPageNum = leftPageNum + 1;
+            const renderPromises = [];
+
+            if (leftPageNum >= 1) renderPromises.push(renderSinglePage(leftPageNum, canvasLeft, ctxLeft));
+            else { ctxLeft.clearRect(0, 0, canvasLeft.width, canvasLeft.height); canvasLeft.width = canvasRight.width || 400; canvasLeft.height = canvasRight.height || 600; }
+
+            if (rightPageNum <= pdfDoc.numPages) renderPromises.push(renderSinglePage(rightPageNum, canvasRight, ctxRight));
+            else { ctxRight.clearRect(0, 0, canvasRight.width, canvasRight.height); canvasRight.width = canvasLeft.width || 400; canvasRight.height = canvasLeft.height || 600; }
+
+            wrapper.classList.toggle('single', leftPageNum < 1 || rightPageNum > pdfDoc.numPages);
+            await Promise.all(renderPromises);
+            setPageValue(leftPageNum >= 1 ? leftPageNum : rightPageNum);
+        }
+    } catch (e) { console.error('Ошибка отрисовки страницы:', e); }
+
+    wrapper.classList.remove('turning');
+    isRendering = false;
+    updateButtons();
+    syncBookmarkButton();
+    // Ghi nhớ chỗ đang đọc để lần sau mở lại còn biết đường quay về
+    readerSave(currentBookId, { lastPage: firstVisiblePage() });
+}
+
+async function renderSinglePage(num, canvas, ctx) {
+    const page = await pdfDoc.getPage(num);
+    const viewport = page.getViewport({ scale: currentScale });
+    const outputScale = window.devicePixelRatio || 1;
+
+    canvas.width = Math.floor(viewport.width * outputScale);
+    canvas.height = Math.floor(viewport.height * outputScale);
+    canvas.style.width = Math.floor(viewport.width) + "px";
+    canvas.style.height = Math.floor(viewport.height) + "px";
+
+    await page.render({ canvasContext: ctx, transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null, viewport: viewport }).promise;
+}
+
+/* ---------- Nhập số trang để nhảy thẳng ---------- */
+const pageInput = $('page-num');
+function setPageValue(v){ if(document.activeElement !== pageInput) pageInput.value = v; }
+
+function goToPage(target){
+    if(!pdfDoc || isRendering) return false;
+    const total = pdfDoc.numPages;
+    if(!Number.isFinite(target) || target < 1 || target > total) return false;
+    currentPage = isMobile ? target : (target % 2 === 0 ? target : target);
+    renderPages();
+    return true;
+}
+function flagPageError(){
+    pageInput.classList.add('err');
+    pageInput.title = `Введите число от 1 до ${pdfDoc ? pdfDoc.numPages : 1}`;
+    setTimeout(()=>{ pageInput.classList.remove('err'); pageInput.title = 'Введите номер страницы'; }, 1200);
+}
+pageInput.addEventListener('focus', ()=> pageInput.select());
+pageInput.addEventListener('keydown', e=>{
+    if(e.key === 'Escape'){ setPageValue(firstVisiblePage()); pageInput.blur(); return; }
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const raw = pageInput.value.trim();
+    // Chỉ nhận chữ số — mọi ký tự khác đều bị từ chối ngay
+    if(!/^\d+$/.test(raw)){ flagPageError(); return; }
+    if(!goToPage(parseInt(raw, 10))){ flagPageError(); return; }
+    pageInput.blur();
+    dismissResume();
+});
+pageInput.addEventListener('blur', ()=> setPageValue(firstVisiblePage()));
+
+function onPrevPage() {
+    if (!pdfDoc || currentPage <= 1 || isRendering) return;
+    currentPage = isMobile ? currentPage - 1 : Math.max(1, currentPage - 2);
+    renderPages();
+}
+
+function onNextPage() {
+    if (!pdfDoc || currentPage >= pdfDoc.numPages || isRendering) return;
+    currentPage = isMobile ? currentPage + 1 : Math.min(pdfDoc.numPages, currentPage + 2);
+    renderPages();
+}
+
+function updateButtons() {
+    $('btn-prev').disabled = currentPage <= 1;
+    $('btn-next').disabled = !pdfDoc || currentPage >= pdfDoc.numPages;
+}
+function onZoomIn() { if(currentScale < 3.0) { currentScale += 0.2; renderPages(); } }
+function onZoomOut() { if(currentScale > 0.6) { currentScale -= 0.2; renderPages(); } }
+
+/* ---------- Điều khiển bằng bàn phím ---------- */
+document.addEventListener('keydown', e=>{
+    if(!$('book-reader-modal').classList.contains('show')) return;
+    if(document.activeElement === pageInput) return;
+    if(e.key === 'ArrowLeft'){ e.preventDefault(); onPrevPage(); }
+    else if(e.key === 'ArrowRight'){ e.preventDefault(); onNextPage(); }
+    else if(e.key === 'Escape'){ closeBookReader(); }
+});
+
+</script>
+</body>
+</html>
