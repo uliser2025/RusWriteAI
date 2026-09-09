@@ -399,6 +399,119 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;position:relative;z-
 #editor-content:focus{background:linear-gradient(180deg,rgba(234,244,253,.35),transparent 220px);}
 
 /* ==========================================================================
+   LỚP ĐỌC KẾT QUẢ — bài gốc có tô lỗi tại chỗ
+   Nguyên tắc thị giác: chữ vẫn là chữ, lỗi chỉ là một nét gạch chân mảnh và
+   một nền rất nhạt. Không viền, không khối màu, không icon — để mắt vẫn đọc
+   được mạch văn chứ không bị kéo vào từng ô màu.
+   ========================================================================== */
+.review-layer{
+    position:relative;z-index:2;padding:2rem 2rem 2.5rem 4.9rem;min-height:340px;
+    font-family:'Lora',Georgia,serif;font-size:1.16rem;line-height:2;color:var(--ink);
+    white-space:pre-wrap;word-break:break-word;
+}
+.review-layer[hidden]{display:none;}
+
+/* Chuyển chế độ xem */
+.review-switch{display:inline-flex;background:var(--cream);border:1.5px solid var(--line);border-radius:99px;padding:2px;}
+.rv-btn{
+    border:0;background:transparent;cursor:pointer;font:inherit;font-size:.76rem;font-weight:700;
+    color:var(--ink-soft);padding:.34rem .74rem;border-radius:99px;transition:background .18s,color .18s;
+}
+.rv-btn:hover{color:var(--ink);}
+.rv-btn.active{background:var(--snow);color:var(--blue);box-shadow:0 1px 3px rgba(20,30,60,.12);}
+
+/* --- Vệt tô lỗi --- */
+.hl{
+    cursor:pointer;border-radius:3px;padding:.06em .04em;
+    background:var(--hl-bg,rgba(120,130,150,.10));
+    box-shadow:inset 0 -2px 0 0 var(--hl-line,rgba(120,130,150,.5));
+    transition:background .18s,box-shadow .18s;
+}
+.hl:hover{background:var(--hl-bg-strong,rgba(120,130,150,.2));}
+.hl.is-active{
+    background:var(--hl-bg-strong,rgba(120,130,150,.24));
+    box-shadow:inset 0 -2px 0 0 var(--hl-line,rgba(120,130,150,.9)), 0 0 0 2px var(--hl-bg-strong,rgba(120,130,150,.24));
+}
+/* Vùng có từ 2 lỗi trở lên: nét gạch đôi thay vì chồng hai màu lên nhau */
+.hl.hl-multi{box-shadow:inset 0 -2px 0 0 var(--hl-line,#8892A6), inset 0 -5px 0 0 rgba(255,255,255,.85), inset 0 -7px 0 0 var(--hl-line,#8892A6);}
+
+/* Sáu nhóm lỗi — tông trầm, không chói, phân biệt được cả khi in đen trắng
+   nhờ độ đậm nét gạch khác nhau. */
+.hl-grammar    {--hl-line:#C0392B;--hl-bg:rgba(192,57,43,.09); --hl-bg-strong:rgba(192,57,43,.2);}
+.hl-spelling   {--hl-line:#B7791F;--hl-bg:rgba(183,121,31,.10);--hl-bg-strong:rgba(183,121,31,.22);}
+.hl-vocabulary {--hl-line:#0039A6;--hl-bg:rgba(0,57,166,.08);  --hl-bg-strong:rgba(0,57,166,.18);}
+.hl-syntax     {--hl-line:#0E7490;--hl-bg:rgba(14,116,144,.09);--hl-bg-strong:rgba(14,116,144,.2);}
+.hl-style      {--hl-line:#6B21A8;--hl-bg:rgba(107,33,168,.08);--hl-bg-strong:rgba(107,33,168,.18);}
+.hl-punctuation{--hl-line:#64748B;--hl-bg:rgba(100,116,139,.09);--hl-bg-strong:rgba(100,116,139,.2);}
+
+/* Chú giải màu, đặt ngay dưới bài viết */
+.hl-legend{
+    display:flex;flex-wrap:wrap;gap:.5rem .95rem;align-items:center;
+    padding:.75rem 2rem .2rem 4.9rem;font-family:'Inter',system-ui,sans-serif;
+}
+.hl-legend b{font-size:.72rem;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;}
+.hl-legend span{display:inline-flex;align-items:center;gap:.34rem;font-size:.76rem;color:var(--ink-soft);font-weight:600;}
+.hl-legend i{width:14px;height:3px;border-radius:2px;background:var(--hl-line);display:inline-block;}
+.hl-note{
+    padding:.2rem 2rem 1rem 4.9rem;font-family:'Inter',system-ui,sans-serif;
+    font-size:.75rem;color:var(--ink-faint);line-height:1.6;
+}
+
+/* Thẻ chi tiết lỗi nổi lên khi bấm vào vệt tô */
+.hl-pop{
+    position:fixed;z-index:120;width:min(340px,calc(100vw - 24px));
+    background:var(--snow);border:1.5px solid var(--line-blue);border-radius:14px;
+    box-shadow:0 14px 40px rgba(20,30,60,.18);padding:.9rem 1rem;
+    font-family:'Inter',system-ui,sans-serif;
+    opacity:0;transform:translateY(6px);transition:opacity .16s,transform .16s;
+}
+.hl-pop.show{opacity:1;transform:translateY(0);}
+.hl-pop-row{display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap;margin-bottom:.55rem;}
+.hl-pop .was{color:#B3122B;text-decoration:line-through;font-weight:600;}
+.hl-pop .now{color:#15803D;font-weight:700;}
+.hl-pop .arrow{color:var(--ink-faint);}
+.hl-pop-h{font-size:.68rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);margin:.55rem 0 .18rem;}
+.hl-pop p{margin:0;font-size:.86rem;line-height:1.6;color:var(--ink);}
+.hl-pop .ex{font-family:'Lora',Georgia,serif;color:var(--blue);}
+.hl-pop-close{position:absolute;top:.5rem;right:.6rem;border:0;background:transparent;cursor:pointer;color:var(--ink-faint);font-size:1rem;}
+.hl-pop-more{margin-top:.7rem;border:0;background:var(--blue-pale);color:var(--blue);font:inherit;font-size:.76rem;
+    font-weight:700;padding:.4rem .7rem;border-radius:8px;cursor:pointer;width:100%;}
+
+/* Nhận xét phụ trong từng tiêu chí chấm điểm */
+.crit-sub{margin:.35rem 0 0;font-size:.83rem;line-height:1.6;color:var(--ink-soft);}
+.crit-sub b{font-weight:800;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;}
+.crit-sub.good b{color:#15803D;}
+.crit-sub.warn b{color:#B7791F;}
+
+/* Tên quy tắc (tiếng Việt) và ví dụ (tiếng Nga) trong thẻ lỗi */
+.err-rule-name{margin:.4rem 0 0;font-size:.8rem;font-weight:700;color:var(--blue);}
+.err-example{margin:.35rem 0 0;font-size:.86rem;color:var(--ink-soft);}
+.err-example b{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
+.err-example span{font-family:'Lora',Georgia,serif;color:var(--ink);}
+
+/* Mức độ nghiêm trọng của lỗi */
+.chip-sev{font-weight:700;}
+.chip-sev.sev-high{background:rgba(179,18,43,.12);color:#B3122B;}
+.chip-sev.sev-medium{background:rgba(183,121,31,.14);color:#8A5A12;}
+.chip-sev.sev-low{background:rgba(100,116,139,.12);color:#54606F;}
+
+/* Thẻ lỗi trong danh sách khi được chọn từ bài viết */
+.err.is-active,.err.is-active.knzo{
+    box-shadow:0 0 0 2px var(--blue),0 6px 18px rgba(0,57,166,.14);
+    transition:box-shadow .25s;
+}
+.err[data-anchored="true"]{cursor:pointer;}
+.err-locate{font-size:.7rem;font-weight:700;color:var(--blue);background:var(--blue-pale);
+    border-radius:6px;padding:.16rem .45rem;margin-left:.35rem;white-space:nowrap;}
+.err-noanchor{font-size:.7rem;color:var(--ink-faint);margin-left:.35rem;}
+
+@media (max-width:820px){
+    .review-layer{padding:1.5rem 1.1rem 2rem 3.2rem;font-size:1.06rem;line-height:1.9;}
+    .hl-legend,.hl-note{padding-left:1.1rem;padding-right:1.1rem;}
+    .review-switch{order:3;}
+}
+
+/* ==========================================================================
    MENTOR — Мишка nói
    ========================================================================== */
 .mentor{
@@ -1145,12 +1258,22 @@ canvas.pdf-canvas{display:block;max-width:100%;height:auto;}
                             <h2 class="paper-title serif"><span id="paper-ico"></span>Ваш текст</h2>
                             <div class="paper-actions">
                                 <span id="word-count" class="wordcount">0 слов</span>
+                                <!-- Chỉ hiện sau khi chấm xong -->
+                                <div id="review-switch" class="review-switch" role="group" aria-label="Режим просмотра" hidden>
+                                    <button type="button" class="rv-btn active" data-view="marked">Разметка</button>
+                                    <button type="button" class="rv-btn" data-view="corrected">Исправленный</button>
+                                    <button type="button" class="rv-btn" data-view="edit">Править</button>
+                                </div>
                                 <button id="btn-outline" class="btn btn-soft">Составить план</button>
                                 <button id="btn-correct" class="btn btn-blue">Проверить текст</button>
                             </div>
                         </div>
                         <div id="editor-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Поле для сочинения"
                              placeholder="Пишите по-русски…"></div>
+                        <!-- Lớp đọc kết quả: hiện ĐÚNG bài gốc của người viết, có tô lỗi tại chỗ.
+                             Tách khỏi #editor-content vì contenteditable + thẻ highlight sẽ phá
+                             chỉ số ký tự ngay khi người dùng gõ thêm một chữ. -->
+                        <div id="review-layer" class="review-layer" hidden></div>
                         <div id="paper-corner-bl" class="paper-corner bl" aria-hidden="true"></div>
                     </div>
                 </section>
@@ -2037,7 +2160,26 @@ async function loadEssayFromHistory(essayId){
         const response = await fetch(`${API_BASE}/api/essay/${essayId}`,{headers:{'Authorization':`Bearer ${token}`}});
         if(!response.ok) throw new Error('Работа не найдена.');
         const essay = await response.json();
-        $('editor-content').innerHTML = textToHtmlLines(essay.corrected_text);
+        const fb = essay.feedback || {};
+
+        // Nhật ký lưu cả bài gốc lẫn kết quả chấm, nên mở lại bài cũ vẫn thấy
+        // đúng những chỗ đã được tô — không phải chấm lại (và không tốn AI).
+        $('editor-content').innerHTML = textToHtmlLines(essay.original_text || essay.corrected_text || '');
+        if(essay.original_text && (fb.highlight_spans || fb.errors)){
+            lastCheck = {
+                text: essay.original_text,
+                errors: fb.errors || [],
+                spans: fb.highlight_spans || [],
+                corrected: essay.corrected_text || ''
+            };
+            $('review-switch').hidden = false;
+            setReviewView('marked');
+        }else{
+            lastCheck = null;
+            $('review-switch').hidden = true;
+            $('review-layer').hidden = true;
+            const ex = $('review-extras'); if(ex) ex.remove();
+        }
         updateWordCount();
         currentOutline = essay.outline || null;
         currentVocabulary = Array.isArray(essay.vocabulary) ? essay.vocabulary.slice() : [];
@@ -2340,8 +2482,20 @@ $('btn-correct').addEventListener('click', async ()=>{
         const data = await response.json();
         if(!response.ok) throw new Error(data.error||'Сервер не отвечает');
         stopThinking();
-        $('editor-content').innerHTML = textToHtmlLines(data.corrected_text);
+
+        // KHÔNG ghi đè ô soạn thảo bằng bản đã sửa nữa. Bài gốc phải còn nguyên
+        // thì các chỉ số lỗi mới trỏ đúng chỗ, và người viết mới đối chiếu được
+        // cái mình đã viết với cái Миша sửa.
+        lastCheck = {
+            text: text,
+            errors: data.errors || [],
+            spans: data.highlight_spans || [],
+            corrected: data.corrected_text || ''
+        };
+        $('review-switch').hidden = false;
+        setReviewView('marked');
         updateWordCount();
+
         // Từ mà bài viết còn thiếu được bổ sung thẳng vào túi từ vựng (mục 7)
         mergeVocabulary((data.recommended_vocabulary||[]).map(v=>({...v,_source:'correction'})));
         renderCorrectionResult(data);
@@ -2354,6 +2508,253 @@ $('btn-correct').addEventListener('click', async ()=>{
         btn.disabled = false; btn.innerText = 'Проверить текст';
     }
 });
+
+/* ==========================================================================
+   TÔ LỖI TRỰC TIẾP LÊN BÀI VIẾT + ĐỒNG BỘ HAI CHIỀU VỚI DANH SÁCH LỖI
+
+   Backend đã cắt bài viết thành các đoạn không chồng nhau (highlight_spans),
+   mỗi đoạn kèm danh sách id lỗi phủ lên nó. Ở đây chỉ việc render tuần tự
+   theo chỉ số ký tự — không tìm chuỗi, không đoán, nên không bao giờ lệch.
+
+   Bài GỐC được giữ nguyên trong lastCheck.text. Ô soạn thảo không bị ghi đè
+   nữa: người dùng bấm "Править" là quay lại đúng bài mình đã viết.
+   ========================================================================== */
+let lastCheck = null;      // { text, errors, spans, corrected }
+let activeErrorId = null;
+
+const ERR_CATS = {
+    grammar:     { cls:'hl-grammar',     label:'Грамматика' },
+    spelling:    { cls:'hl-spelling',    label:'Орфография' },
+    vocabulary:  { cls:'hl-vocabulary',  label:'Лексика' },
+    syntax:      { cls:'hl-syntax',      label:'Строй предложения' },
+    style:       { cls:'hl-style',       label:'Стиль' },
+    punctuation: { cls:'hl-punctuation', label:'Пунктуация' }
+};
+
+/* Suy ra nhóm lỗi. Ưu tiên trường category nếu backend/AI có trả về; nếu chưa
+   thì đọc error_type_ru mà pipeline hiện tại đang dùng, nên không cần đổi
+   schema vẫn chạy được ngay. */
+function errorCategory(err){
+    const explicit = String(err.category||'').toLowerCase();
+    if(ERR_CATS[explicit]) return explicit;
+
+    const t = String(err.error_type_ru || err.error_type || '').toLowerCase();
+    if(/пунктуац|запят|тире|двоеточ|знак преп/.test(t)) return 'punctuation';
+    if(/орфограф|написан|опечат|букв/.test(t))          return 'spelling';
+    if(/лексик|словоупотреб|сочетаем|значени|слов/.test(t)) return 'vocabulary';
+    if(/синтакс|порядок слов|структур|союз|связь предлож/.test(t)) return 'syntax';
+    if(/стил|регистр|разговорн|канцеляр|тавтолог|повтор/.test(t)) return 'style';
+    if(/грамматик|падеж|род|числ|врем|вид|спряж|согласов|предлог|управлен/.test(t)) return 'grammar';
+    return 'grammar'; // mặc định an toàn nhất cho bài luyện viết
+}
+
+/* Dựng HTML bài viết có tô lỗi. Chỉ dùng chỉ số ký tự trên chuỗi gốc. */
+function buildMarkedHTML(text, errors, spans){
+    const byId = {};
+    errors.forEach(e=>{ byId[e.id] = e; });
+
+    let html = '', cursor = 0;
+    (spans||[]).forEach(sp=>{
+        if(sp.start > cursor) html += escapeHTML(text.slice(cursor, sp.start));
+
+        const ids  = sp.errorIds.filter(id=>byId[id]);
+        if(!ids.length){ html += escapeHTML(text.slice(sp.start, sp.end)); cursor = sp.end; return; }
+
+        const first = byId[ids[0]];
+        const cat   = errorCategory(first);
+        const multi = ids.length > 1 ? ' hl-multi' : '';
+        const title = ids.length > 1
+            ? `${ids.length} замечания в этом фрагменте`
+            : (first.correction ? `→ ${first.correction}` : ERR_CATS[cat].label);
+
+        html += `<span class="hl ${ERR_CATS[cat].cls}${multi}" data-ids="${escapeHTML(ids.join(','))}"`
+             +  ` role="button" tabindex="0" title="${escapeHTML(title)}">`
+             +  escapeHTML(text.slice(sp.start, sp.end)) + '</span>';
+        cursor = sp.end;
+    });
+    html += escapeHTML(text.slice(cursor));
+    return html;
+}
+
+/* Chú giải: chỉ liệt kê những nhóm THẬT SỰ có trong bài, không bày cả 6 màu
+   ra cho rối mắt. */
+function buildLegend(errors){
+    const used = [...new Set(errors.filter(e=>e.anchored).map(errorCategory))];
+    if(!used.length) return '';
+    const items = used.map(k=>`<span class="${ERR_CATS[k].cls}"><i></i>${ERR_CATS[k].label}</span>`).join('');
+    return `<div class="hl-legend"><b>Разметка</b>${items}</div>`;
+}
+
+function renderReviewLayer(){
+    if(!lastCheck) return;
+    const { text, errors, spans } = lastCheck;
+    const layer = $('review-layer');
+
+    const missed = errors.filter(e=>e.anchored===false).length;
+    const note = missed
+        ? `<div class="hl-note">Ещё ${missed} ${missed===1?'замечание не отмечено':'замечаний не отмечено'} в тексте — ${missed===1?'оно есть':'они есть'} во вкладке «Ошибки».</div>`
+        : '';
+
+    layer.innerHTML = buildMarkedHTML(text, errors, spans);
+    // Chú giải và ghi chú đặt NGOÀI vùng chữ để không phá lề bài viết
+    const old = $('review-extras');
+    if(old) old.remove();
+    layer.insertAdjacentHTML('afterend',
+        `<div id="review-extras">${buildLegend(errors)}${note}</div>`);
+
+    layer.querySelectorAll('.hl').forEach(el=>{
+        el.addEventListener('click', ev=>{ ev.stopPropagation(); onHighlightClick(el); });
+        el.addEventListener('keydown', ev=>{
+            if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); onHighlightClick(el); }
+        });
+    });
+}
+
+/* ---------- Chuyển chế độ xem: Разметка / Исправленный / Править ---------- */
+function setReviewView(view){
+    const editor = $('editor-content');
+    const layer  = $('review-layer');
+    const extras = $('review-extras');
+
+    document.querySelectorAll('#review-switch .rv-btn')
+        .forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+
+    if(view==='edit'){
+        layer.hidden = true; if(extras) extras.hidden = true;
+        editor.hidden = false;
+        hideErrorPopup();
+        editor.focus();
+        return;
+    }
+    editor.hidden = true;
+    layer.hidden = false;
+
+    if(view==='corrected'){
+        if(extras) extras.hidden = true;
+        layer.innerHTML = escapeHTML(lastCheck ? (lastCheck.corrected||'') : '');
+    }else{
+        if(extras) extras.hidden = false;
+        renderReviewLayer();
+    }
+}
+
+/* ---------- A. Bấm vào lỗi TRONG BÀI → mở thẻ chi tiết + nhảy tới thẻ lỗi ---------- */
+function onHighlightClick(el){
+    const ids = String(el.dataset.ids||'').split(',').filter(Boolean);
+    if(!ids.length) return;
+    showErrorPopup(el, ids);
+    focusErrorCard(ids[0], /*scrollIntoView*/ true);
+}
+
+/* ---------- B. Bấm vào thẻ lỗi → cuộn tới đúng chỗ trong bài ---------- */
+function focusErrorInText(id){
+    const layer = $('review-layer');
+    if(layer.hidden) setReviewView('marked');
+
+    const el = layer.querySelector(`.hl[data-ids~="${CSS.escape(id)}"], .hl[data-ids*="${CSS.escape(id)}"]`);
+    if(!el) return false;
+
+    layer.querySelectorAll('.hl.is-active').forEach(n=>n.classList.remove('is-active'));
+    el.classList.add('is-active');
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    return true;
+}
+
+function focusErrorCard(id, scroll){
+    activeErrorId = id;
+    showTab('errors');
+    const card = document.querySelector(`.err[data-error-id="${CSS.escape(id)}"]`);
+    document.querySelectorAll('.err.is-active').forEach(n=>n.classList.remove('is-active'));
+    if(!card) return;
+    card.classList.add('is-active');
+    if(scroll) card.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+/* ---------- Thẻ chi tiết lỗi ---------- */
+function hideErrorPopup(){
+    const p = $('hl-pop');
+    if(p){ p.classList.remove('show'); setTimeout(()=>p.remove(), 160); }
+    document.querySelectorAll('.hl.is-active').forEach(n=>n.classList.remove('is-active'));
+}
+
+function showErrorPopup(anchorEl, ids){
+    hideErrorPopup();
+    anchorEl.classList.add('is-active');
+
+    const errs = ids.map(id=>(lastCheck.errors||[]).find(e=>e.id===id)).filter(Boolean);
+    if(!errs.length) return;
+
+    const body = errs.map(err=>{
+        const cat = errorCategory(err);
+        // Giải thích: nhận cả trường tiếng Việt (nếu prompt đã đổi) lẫn tiếng Nga
+        const why  = err.explanation_vi || err.explanationVietnamese || err.explanation_ru || err.explanation || '';
+        const rule = err.rule_tip_vi || err.rule_tip_ru || err.rule_tip || err.grammarRule || '';
+        const ex   = err.example_ru || err.example || err.better_alternative_ru || '';
+        return `
+        <div>
+            <div class="hl-pop-row">
+                <span class="was">${escapeHTML(err.original||'')}</span>
+                <span class="arrow">→</span>
+                <span class="now">${escapeHTML(err.correction||err.correctedText||'')}</span>
+            </div>
+            <div class="hl-pop-h">${escapeHTML(ERR_CATS[cat].label)}</div>
+            ${why?`<p>${escapeHTML(why)}</p>`:''}
+            ${rule?`<div class="hl-pop-h">Правило</div><p>${escapeHTML(rule)}</p>`:''}
+            ${ex?`<div class="hl-pop-h">Пример</div><p class="ex">${escapeHTML(ex)}</p>`:''}
+        </div>`;
+    }).join('<hr style="border:0;border-top:1px solid var(--line);margin:.8rem 0;">');
+
+    const pop = document.createElement('div');
+    pop.id = 'hl-pop';
+    pop.className = 'hl-pop';
+    pop.innerHTML = `<button class="hl-pop-close" aria-label="Закрыть">✕</button>${body}
+        <button class="hl-pop-more">Открыть в списке ошибок</button>`;
+    document.body.appendChild(pop);
+
+    // Đặt thẻ ngay dưới vệt tô, tự lật lên trên nếu chạm mép dưới màn hình
+    const r = anchorEl.getBoundingClientRect();
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    let left = Math.min(Math.max(12, r.left), window.innerWidth - w - 12);
+    let top  = r.bottom + 8;
+    if(top + h > window.innerHeight - 12) top = Math.max(12, r.top - h - 8);
+    pop.style.left = left+'px';
+    pop.style.top  = top+'px';
+    requestAnimationFrame(()=>pop.classList.add('show'));
+
+    pop.querySelector('.hl-pop-close').addEventListener('click', hideErrorPopup);
+    pop.querySelector('.hl-pop-more').addEventListener('click', ()=>{
+        hideErrorPopup();
+        focusErrorCard(ids[0], true);
+    });
+}
+
+document.addEventListener('click', ev=>{
+    if(!ev.target.closest('.hl-pop') && !ev.target.closest('.hl')) hideErrorPopup();
+});
+document.addEventListener('keydown', ev=>{ if(ev.key==='Escape') hideErrorPopup(); });
+
+document.querySelectorAll('#review-switch .rv-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>setReviewView(btn.dataset.view));
+});
+
+/* ---------- Nhận xét theo tiêu chí (bậc A1/A2/B1) ----------
+   Thang ТРКИ ở ba bậc này chấm bằng cách TRỪ ĐIỂM, không có điểm thành phần.
+   Bịa ra điểm cho từng tiêu chí sẽ sai chuẩn, nên ở đây chỉ hiện nhận xét
+   định tính — vẫn đủ để học viên biết mình yếu ở khâu nào. */
+function renderCriteriaNotes(criteria){
+    if(!Array.isArray(criteria) || !criteria.length) return '';
+    const dot = v => v==='хорошо' ? 'ok' : v==='слабо' ? 'no' : 'half';
+    const items = criteria.map((c,i)=>`
+        <div class="crit enter" style="animation-delay:${i*80}ms">
+            <div class="crit-head">
+                <span class="crit-name">${escapeHTML(c.name||'')}</span>
+                <span class="cov-dot ${dot(c.verdict)}"></span>
+            </div>
+            ${c.comment?`<p class="crit-note">${escapeHTML(c.comment)}</p>`:''}
+            ${c.improve?`<p class="crit-sub warn"><b>Улучшить:</b> ${escapeHTML(c.improve)}</p>`:''}
+        </div>`).join('');
+    return `<h4 class="section-h serif">Критерии оценки</h4>${items}`;
+}
 
 /* ---------- Điểm số ---------- */
 function renderScoring(scoring){
@@ -2380,7 +2781,8 @@ function renderScoring(scoring){
             <li><span>КНЗО — ${scoring.knzo_count} × ${scoring.knzo_penalty_each}</span><b>−${scoring.knzo_count*scoring.knzo_penalty_each}</b></li>
             ${scoring.bonus_awarded?`<li><span>Бонус — ${escapeHTML(scoring.bonus_reason||'')}</span><b>+${scoring.bonus_awarded}</b></li>`:''}
         </ul>
-        ${scoring.validity_note?`<div class="advice" style="background:rgba(212,80,106,.1);border-color:rgba(212,80,106,.35);color:#B33E56;"><span>!</span><span>${escapeHTML(scoring.validity_note)}</span></div>`:''}`;
+        ${scoring.validity_note?`<div class="advice" style="background:rgba(212,80,106,.1);border-color:rgba(212,80,106,.35);color:#B33E56;"><span>!</span><span>${escapeHTML(scoring.validity_note)}</span></div>`:''}
+        ${renderCriteriaNotes(scoring.criteria)}`;
     }
 
     const params = (scoring.parameters||[]).map((p,i)=>{
@@ -2393,6 +2795,8 @@ function renderScoring(scoring){
             </div>
             <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
             ${p.comment?`<p class="crit-note">${escapeHTML(p.comment)}</p>`:''}
+            ${p.strength?`<p class="crit-sub good"><b>Сильно:</b> ${escapeHTML(p.strength)}</p>`:''}
+            ${p.improve?`<p class="crit-sub warn"><b>Улучшить:</b> ${escapeHTML(p.improve)}</p>`:''}
         </div>`;
     }).join('');
     const total = scoring.total_score_max ? Math.round((scoring.total_score_earned/scoring.total_score_max)*100) : 0;
@@ -2417,8 +2821,11 @@ function renderCorrectionResult(data){
     const kzo = errors.filter(e=>e.error_class==='КЗО').length;
     const mood = errors.length===0 ? 'cheer' : (kzo>0 ? 'care' : 'idle');
 
-    // Tương thích ngược: bài cũ trong nhật ký chỉ có overall_feedback (tiếng Việt)
-    const feedbackRu = data.overall_feedback_ru || data.overall_feedback || '';
+    // Nhận xét của Миша nay bằng TIẾNG VIỆT. Vẫn đọc các trường _ru cũ để bài
+    // đã chấm trước lần nâng cấp này mở lại từ nhật ký vẫn hiển thị đầy đủ.
+    const vi = (a, b) => data[a] || data[b] || '';
+    const viList = (a, b) => (data[a] && data[a].length ? data[a] : (data[b] || []));
+    const feedback = vi('overall_feedback_vi', 'overall_feedback_ru') || data.overall_feedback || '';
     const lvl = data.level || currentLevel || '';
     const list = (arr, cls) => (arr||[]).map(x=>`<li>${escapeHTML(x)}</li>`).join('') ;
 
@@ -2427,12 +2834,12 @@ function renderCorrectionResult(data){
     const coverage = (data.outline_coverage||[]).map(c=>{
         const mark = c.status==='раскрыто' ? 'ok' : c.status==='частично' ? 'half' : 'no';
         return `<div class="cov"><span class="cov-dot ${mark}"></span>
-            <span><b>${escapeHTML(c.point_ru||'')}</b><small>${escapeHTML(c.comment_ru||'')}</small></span></div>`;
+            <span><b>${escapeHTML(c.point_ru||'')}</b><small>${escapeHTML(c.comment_vi||c.comment_ru||'')}</small></span></div>`;
     }).join('');
 
     const vocabUse = (data.vocabulary_usage||[]).map(v=>`
         <div class="cov"><span class="cov-dot ${v.used?'ok':'no'}"></span>
-            <span><b>${escapeHTML(v.term||'')}</b><small>${escapeHTML(v.comment_ru||'')}</small></span></div>`).join('');
+            <span><b>${escapeHTML(v.term||'')}</b><small>${escapeHTML(v.comment_vi||v.comment_ru||'')}</small></span></div>`).join('');
 
     const reqs = (data.essay_requirements_check||[]).map((r,i)=>`
         <li class="enter" style="animation-delay:${i*60}ms">
@@ -2444,27 +2851,27 @@ function renderCorrectionResult(data){
         <div style="display:flex;gap:1rem;align-items:flex-start;margin-bottom:1.1rem;" class="enter">
             <div style="flex-shrink:0;">${bearSVG(72,mood)}</div>
             <div style="min-width:0;">
-                <p class="fb-ru" style="color:var(--blue);font-size:1.02rem;font-weight:600;margin:0;">${escapeHTML(feedbackRu)}</p>
+                <p class="fb-ru" style="color:var(--blue);font-size:1.02rem;font-weight:600;margin:0;">${escapeHTML(feedback)}</p>
             </div>
         </div>
 
-        ${data.level_position_ru?`<div class="level-note">${matryoshkaSVG(Math.max(0,levelIndex(lvl)),22)}
-            <span style="font-weight:600;line-height:1.6;">${escapeHTML(data.level_position_ru)}</span></div>`:''}
+        ${vi('level_position_vi','level_position_ru')?`<div class="level-note">${matryoshkaSVG(Math.max(0,levelIndex(lvl)),22)}
+            <span style="font-weight:600;line-height:1.6;">${escapeHTML(vi('level_position_vi','level_position_ru'))}</span></div>`:''}
 
         ${renderScoring(data.scoring)}
 
-        ${sec('Сильные стороны', list(data.strengths_ru)?`<ul class="fb-list">${list(data.strengths_ru)}</ul>`:'', 'good')}
+        ${sec('Сильные стороны', list(viList('strengths_vi','strengths_ru'))?`<ul class="fb-list">${list(viList('strengths_vi','strengths_ru'))}</ul>`:'', 'good')}
         ${sec('Что улучшить', `
-            ${data.main_problem_ru?`<p class="fb-ru" style="margin-bottom:.5rem;">${escapeHTML(data.main_problem_ru)}</p>`:''}
-            ${list(data.weaknesses_ru)?`<ul class="fb-list">${list(data.weaknesses_ru)}</ul>`:''}
+            ${vi('main_problem_vi','main_problem_ru')?`<p class="fb-ru" style="margin-bottom:.5rem;">${escapeHTML(vi('main_problem_vi','main_problem_ru'))}</p>`:''}
+            ${list(viList('weaknesses_vi','weaknesses_ru'))?`<ul class="fb-list">${list(viList('weaknesses_vi','weaknesses_ru'))}</ul>`:''}
             ${list(data.vocabulary_to_improve_ru)?`<p class="fb-mini">Лексика: ${escapeHTML(data.vocabulary_to_improve_ru.join(' · '))}</p>`:''}
-            ${list(data.grammar_to_improve_ru)?`<p class="fb-mini">Грамматика: ${escapeHTML(data.grammar_to_improve_ru.join(' · '))}</p>`:''}`, 'warn')}
+            ${list(viList('grammar_to_improve_vi','grammar_to_improve_ru'))?`<p class="fb-mini">Грамматика: ${escapeHTML(viList('grammar_to_improve_vi','grammar_to_improve_ru').join(' · '))}</p>`:''}`, 'warn')}
 
         ${coverage?`<h4 class="section-h serif">Текст и план</h4>${coverage}`:''}
         ${vocabUse?`<h4 class="section-h serif">Лексика из плана</h4>${vocabUse}`:''}
         ${reqs?`<h4 class="section-h serif">Компоненты эссе</h4><ul class="reqs">${reqs}</ul>`:''}
 
-        ${sec('Следующий шаг', list(data.next_steps_ru)?`<ol class="fb-steps">${list(data.next_steps_ru)}</ol>`:'')}`;
+        ${sec('Следующий шаг', list(viList('next_steps_vi','next_steps_ru'))?`<ol class="fb-steps">${list(viList('next_steps_vi','next_steps_ru'))}</ol>`:'')}`;
 
     /* ---------- Tab lỗi: lỗi thật ở trên, gợi ý nâng cấp ở dưới ---------- */
     const errHTML = errors.map((err,i)=>{
@@ -2472,20 +2879,35 @@ function renderCorrectionResult(data){
         const clsLabel = err.error_class==='КЗО' ? 'КЗО · мешает понять'
                         : err.error_class==='КНЗО' ? 'КНЗО · смысл понятен' : '';
         const type = err.error_type_ru || err.error_type || '';
-        const why  = err.explanation_ru || err.explanation || '';
+        // Giải thích nay bằng tiếng Việt; vẫn đọc explanation_ru cho bài cũ.
+        const why  = err.explanation_vi || err.explanation_ru || err.explanation || '';
+        const rname= err.rule_name_vi || '';
         const tip  = err.rule_tip_ru || err.rule_tip || '';
+        const exam = err.example_ru || '';
         const rel  = (err.related_vocabulary||[]).filter(Boolean);
+        const sev  = err.severity || '';
+        const anchored = err.anchored !== false && err.startIndex != null;
         return `
-        <li class="err ${err.error_class==='КНЗО'?'knzo':''} enter" style="animation-delay:${i*55}ms">
+        <li class="err ${err.error_class==='КНЗО'?'knzo':''} enter"
+            data-error-id="${escapeHTML(err.id||('err_'+String(i+1).padStart(3,'0')))}"
+            data-anchored="${anchored}"
+            ${anchored?'title="Показать это место в тексте"':''}
+            style="animation-delay:${i*55}ms">
             <div class="err-line">
                 <span class="was">${escapeHTML(err.original)}</span>
                 <span class="arrow">→</span>
                 <span class="now">${escapeHTML(err.correction)}</span>
                 ${type?`<span class="chip chip-type">${escapeHTML(type)}</span>`:''}
                 ${clsLabel?`<span class="chip ${cls}">${escapeHTML(clsLabel)}</span>`:''}
+                ${sev?`<span class="chip chip-sev sev-${escapeHTML(sev)}">${sev==='high'?'критично':sev==='medium'?'заметно':'мелочь'}</span>`:''}
+                ${anchored
+                    ? '<span class="err-locate">↳ в тексте</span>'
+                    : '<span class="err-noanchor">не отмечено в тексте</span>'}
             </div>
             <p class="err-why">${escapeHTML(why)}</p>
+            ${rname?`<p class="err-rule-name">${escapeHTML(rname)}</p>`:''}
             ${tip?`<p class="err-tip"><span>${escapeHTML(tip)}</span></p>`:''}
+            ${exam?`<p class="err-example"><b>Пример:</b> <span>${escapeHTML(exam)}</span></p>`:''}
             ${err.better_alternative_ru?`<p class="err-alt"><b>Лучше сказать:</b> ${escapeHTML(err.better_alternative_ru)}</p>`:''}
             ${rel.length?`<p class="err-alt"><b>Пригодится:</b> ${escapeHTML(rel.join(' · '))}</p>`:''}
             ${err.vi_gloss?`<p class="err-vi">${escapeHTML(err.vi_gloss)}</p>`:''}
@@ -2500,7 +2922,7 @@ function renderCorrectionResult(data){
                 <span class="upg-to">${escapeHTML(u.suggestion||'')}</span>
                 <span class="chip chip-upg">${escapeHTML(u.upgrade_type||'')}</span>
             </div>
-            <p class="err-why">${escapeHTML(u.explanation_ru||'')}</p>
+            <p class="err-why">${escapeHTML(u.explanation_vi||u.explanation_ru||'')}</p>
         </div>`).join('');
 
     const noErr = emptyState(firebirdSVG(150),'Ошибок нет','Исправлять нечего.');
@@ -2509,6 +2931,17 @@ function renderCorrectionResult(data){
         ${upgHTML?`<h4 class="section-h serif">Верно, но можно точнее</h4>
             <p class="note-fine" style="margin:-.4rem 0 .8rem;">Это не ошибки и баллы за них не снимаются.</p>
             ${upgHTML}`:''}`;
+
+    // ĐỒNG BỘ CHIỀU B: bấm thẻ lỗi → cuộn tới đúng chỗ trong bài viết
+    $('tab-errors').querySelectorAll('.err[data-anchored="true"]').forEach(card=>{
+        card.addEventListener('click', ()=>{
+            const id = card.dataset.errorId;
+            document.querySelectorAll('.err.is-active').forEach(n=>n.classList.remove('is-active'));
+            card.classList.add('is-active');
+            activeErrorId = id;
+            focusErrorInText(id);
+        });
+    });
 }
 
 /* ==========================================================================
@@ -2584,11 +3017,25 @@ async function loadResources(){
    ĐẾM TỪ
    ========================================================================== */
 function updateWordCount(){
-    const t = $('editor-content').innerText.trim();
+    // Khi đang xem bản có đánh dấu, ô soạn thảo bị ẩn và innerText trả về rỗng
+    // ở phần lớn trình duyệt — khi đó đếm trên chính bài đã chấm.
+    const editor = $('editor-content');
+    const t = (editor.hidden && lastCheck ? lastCheck.text : editor.innerText).trim();
     const n = t ? t.split(/\s+/).filter(Boolean).length : 0;
     $('word-count').innerText = `${n} слов`;
 }
-$('editor-content').addEventListener('input', updateWordCount);
+$('editor-content').addEventListener('input', ()=>{
+    updateWordCount();
+    // Bài đã đổi thì kết quả chấm cũ không còn ứng với văn bản này nữa:
+    // gỡ đánh dấu để người dùng không đọc nhầm lỗi của bản trước.
+    if(lastCheck && $('editor-content').innerText.trim() !== lastCheck.text){
+        lastCheck = null;
+        $('review-switch').hidden = true;
+        $('review-layer').hidden = true;
+        const ex = $('review-extras'); if(ex) ex.remove();
+        hideErrorPopup();
+    }
+});
 
 /* ==========================================================================
    ЧИТАЛКА — PDF.js

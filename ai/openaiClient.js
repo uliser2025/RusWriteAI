@@ -22,7 +22,7 @@ const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || 'medium';
 // Schema của /api/correct khá lớn (lỗi + gợi ý nâng cấp + đối chiếu dàn ý + đối chiếu
 // từ vựng...), nên đặt thấp sẽ khiến output bị CẮT CỤT GIỮA CHỪNG → JSON hỏng.
 // 16000 là mức an toàn đã kiểm chứng với schema hiện tại của dự án.
-const MAX_OUTPUT_TOKENS = Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 16000);
+const MAX_OUTPUT_TOKENS = Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 24000);
 
 // Một số tham số bị dòng reasoning model từ chối (temperature, top_p, max_tokens...).
 // Thay vì đoán, ta gọi thử rồi tự gỡ đúng tham số mà API báo lỗi. Nhờ vậy code

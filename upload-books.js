@@ -44,6 +44,19 @@ const BOOKS = [
         featured: true
     },
     {
+        // Phiếu chấm bài luận ЭССЕ đã chuẩn hoá — đây chính là bộ tiêu chí mà
+        // Миша áp dụng khi chấm bài ở C1/C2, nên để nổi bật cạnh bảng tiêu chí chung.
+        // Đặt file vào ./books với đúng tên này rồi chạy lại `node upload-books.js`.
+        fileName: 'phieu-danh-gia-esse-c1.pdf',
+        title: 'Как Миша оценивает эссе: лист оценивания ЭССЕ (ТРКИ-3)',
+        author: 'RusWrite AI · по критериям ТРКИ-3/С1',
+        description: 'Полный лист оценивания сочинения-рассуждения: четыре параметра по 5 баллов (интенция, содержание, композиция, языковые средства), правило КЗО «не выше 3 из 5», описание каждого уровня баллов от 0 до 5 и чек-листы по типам заданий. Откройте его, чтобы понять, за что снимаются баллы в вашей работе.',
+        level: 'C1',
+        category: 'Критерии оценивания',
+        accentColor: '#1D2433',
+        featured: true
+    },
+    {
         fileName: 'zolotoe-pero.pdf',
         title: 'Золотое перо',
         author: 'Д. В. Колесова, А. А. Харитонов',

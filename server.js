@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer'); // Khai báo thư viện gửi mail
 const rateLimit = require('express-rate-limit'); // Chống brute-force đăng nhập/đăng ký
+const { buildVerificationEmail } = require('./emails/verification'); // Email xác nhận tiếng Việt
 
 const app = express();
 // Nền tảng hosting (Render, Railway...) tự cấp cổng qua biến môi trường PORT
@@ -30,6 +31,11 @@ const { LEVELS, LEVEL_CODES } = require('./ai/levelProfiles');
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('✅ Kết nối MongoDB thành công!'))
     .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
+
+// Thời hạn của link xác nhận email — dùng CHUNG cho cả jwt.sign và nội dung
+// email, để email không bao giờ ghi sai thời hạn thật của token.
+const VERIFY_TOKEN_TTL = '1h';
+const VERIFY_TOKEN_TTL_LABEL = '1 giờ';
 
 // CẤU HÌNH NODEMAILER GỬI EMAIL
 const transporter = nodemailer.createTransport({
@@ -177,26 +183,27 @@ app.post('/api/register', authLimiter, async (req, res) => {
 
         // 4.4 Mã hóa mật khẩu và tạo token xác thực
         const hashedPassword = await bcrypt.hash(password, 10);
-        const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: VERIFY_TOKEN_TTL });
 
         // 4.5 Lưu user vào database với trạng thái chưa xác thực
         const newUser = new User({ email, password: hashedPassword, verificationToken });
         await newUser.save();
 
-        // 4.6 Gửi email xác nhận
+        // 4.6 Gửi email xác nhận (nội dung dựng ở emails/verification.js)
+        // Thời hạn ghi trong email lấy từ chính expiresIn của token bên trên,
+        // khai báo một chỗ để hai nơi không bao giờ nói khác nhau.
         const verifyLink = `${process.env.BASE_URL}/api/verify?token=${verificationToken}`;
+        const mail = buildVerificationEmail({
+            email,
+            verifyLink,
+            expiresIn: VERIFY_TOKEN_TTL_LABEL
+        });
         await transporter.sendMail({
             from: `"RusWrite AI" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: 'Xác nhận đăng ký tài khoản RusWrite AI',
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>Chào mừng bạn đến với RusWrite AI! 🎓</h2>
-                    <p>Vui lòng nhấp vào nút bên dưới để kích hoạt tài khoản của bạn:</p>
-                    <a href="${verifyLink}" style="display: inline-block; padding: 10px 20px; background-color: #B3122B; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Xác thực Email</a>
-                    <p style="margin-top: 20px; font-size: 12px; color: #666;">Link này sẽ hết hạn trong 1 giờ. Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email.</p>
-                </div>
-            `
+            subject: mail.subject,
+            html: mail.html,
+            text: mail.text   // bản text thuần: tránh bị đánh dấu thư rác
         });
 
         res.status(201).json({ message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.' });
@@ -295,6 +302,9 @@ const {
 } = require('./ai/schemas');
 // Tính điểm ТРКИ tách riêng sang ai/scoring.js để kiểm thử được mà không cần DB.
 const { computeFinalScoring } = require('./ai/scoring');
+// Neo vị trí lỗi vào bài viết gốc để frontend tô sáng đúng chỗ (mục VIII).
+// Chạy SAU khi AI trả lời, hoàn toàn ở phía backend — AI không cần biết chỉ số.
+const { anchorErrors } = require('./ai/highlight');
 
 console.log(`🧠 Model AI đang dùng: ${MODEL} (đổi bằng biến môi trường OPENAI_MODEL)`);
 
@@ -446,28 +456,43 @@ app.post('/api/correct', authenticateToken, async (req, res) => {
 
         const finalScoring = computeFinalScoring(ctx.rubric, data);
 
+        // Neo từng lỗi vào đúng vị trí ký tự trong bài GỐC.
+        // Việc này cố tình làm ở backend chứ không bắt AI đếm chỉ số: mô hình đếm
+        // offset trên chữ Кирилл rất hay lệch, còn ở đây ta so khớp trực tiếp trên
+        // chuỗi thật nên chỉ số luôn đúng, hoặc thà không neo chứ không neo sai.
+        const anchoring = anchorErrors(text, data.errors || []);
+        if (anchoring.stats.unanchored) {
+            console.warn(`⚠️  ${anchoring.stats.unanchored}/${anchoring.stats.total} lỗi không neo được vào bài viết — sẽ hiện trong danh sách nhưng không tô sáng.`);
+        }
+
         const result = {
             level,
             level_description_ru: profile.description_ru,
             trki_name: ctx.rubric ? ctx.rubric.trkiName : null,
             corrected_text: data.corrected_text,
-            errors: data.errors || [],
+            errors: anchoring.errors,
+            // Bài viết đã được cắt thành các đoạn không chồng nhau, mỗi đoạn mang
+            // danh sách id lỗi phủ lên nó. Frontend chỉ việc render tuần tự.
+            highlight_spans: anchoring.spans,
+            highlight_stats: anchoring.stats,
             upgrades: data.upgrades || [],
-            overall_feedback_ru: data.overall_feedback_ru || '',
-            main_problem_ru: data.main_problem_ru || '',
-            strengths_ru: data.strengths_ru || [],
-            weaknesses_ru: data.weaknesses_ru || [],
-            next_steps_ru: data.next_steps_ru || [],
-            vocabulary_to_improve_ru: data.vocabulary_to_improve_ru || [],
-            grammar_to_improve_ru: data.grammar_to_improve_ru || [],
+            // Các trường nhận xét nay bằng TIẾNG VIỆT (mục II.B). Tên trường đổi
+            // hậu tố _ru → _vi để không bao giờ nhầm nội dung với ngôn ngữ.
+            overall_feedback_vi: data.overall_feedback_vi || '',
+            main_problem_vi: data.main_problem_vi || '',
+            strengths_vi: data.strengths_vi || [],
+            weaknesses_vi: data.weaknesses_vi || [],
+            next_steps_vi: data.next_steps_vi || [],
+            vocabulary_to_improve_ru: data.vocabulary_to_improve_ru || [], // là chính các từ Nga
+            grammar_to_improve_vi: data.grammar_to_improve_vi || [],
             recommended_vocabulary: data.recommended_vocabulary || [],
             outline_coverage: data.outline_coverage || [],
             vocabulary_usage: data.vocabulary_usage || [],
-            level_position_ru: data.level_position_ru || '',
+            level_position_vi: data.level_position_vi || '',
             essay_requirements_check: (data.essay_requirements_check || []).map(r => ({
                 requirement: r.requirement,
                 addressed: r.addressed,
-                note: r.note_ru || ''
+                note: r.note_vi || ''
             })),
             scoring: finalScoring
         };

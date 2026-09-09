@@ -25,7 +25,9 @@ function computeFinalScoring(rubric, aiRaw) {
         let bonus = 0, bonusReason = '';
         if (rubric.deductionRules.bonusRules && typeof aiRaw.bonus_awarded === 'number') {
             bonus = Math.max(0, Math.min(aiRaw.bonus_awarded, rubric.deductionRules.bonusRules.maxBonus));
-            bonusReason = aiRaw.bonus_reason_ru || aiRaw.bonus_reason || '';
+            // Lý do cộng thưởng nay bằng tiếng Việt; vẫn đọc trường cũ để
+            // các bài đã chấm trước đây trong nhật ký không bị mất phần này.
+            bonusReason = aiRaw.bonus_reason_vi || aiRaw.bonus_reason_ru || aiRaw.bonus_reason || '';
         }
 
         const finalScore = Math.max(0, Math.min(rubric.totalScore, rubric.totalScore - totalDeducted + bonus));
@@ -45,6 +47,14 @@ function computeFinalScoring(rubric, aiRaw) {
             bonus_awarded: bonus,
             bonus_reason: bonusReason,
             final_score: finalScore,
+            // Nhận xét định tính theo tiêu chí — thay cho điểm thành phần mà
+            // thang ТРКИ ở bậc này vốn không có.
+            criteria: (Array.isArray(aiRaw.criteria_notes) ? aiRaw.criteria_notes : []).map(n => ({
+                name: n.criterion_ru || '',
+                verdict: n.verdict || '',
+                comment: n.comment_vi || '',
+                improve: n.improve_vi || ''
+            })),
             is_valid: isValid,
             validity_note: isValid ? null : `Tổng điểm trừ (${totalDeducted}) vượt ngưỡng ${rubric.deductionRules.invalidationThreshold} điểm — theo quy định ${rubric.trkiName}, bài viết ở mức này KHÔNG được công nhận, bất kể điểm số.`
         };
@@ -66,7 +76,17 @@ function computeFinalScoring(rubric, aiRaw) {
             score = p.kzoCapsAt;
             capped = true;
         }
-        return { name: p.name, max_score: p.maxScore, score, capped, comment: raw.comment_ru || raw.comment || '' };
+        return {
+            name: p.name,
+            max_score: p.maxScore,
+            score,
+            capped,
+            // comment/strength/improve nay bằng tiếng Việt (mục V). Vẫn đọc
+            // comment_ru để bài cũ trong nhật ký hiển thị được như trước.
+            comment: raw.comment_vi || raw.comment_ru || raw.comment || '',
+            strength: raw.strength_vi || '',
+            improve: raw.improve_vi || ''
+        };
     });
     const totalEarned = parameters.reduce((sum, p) => sum + p.score, 0);
     const totalMax = rubric.parameters.reduce((sum, p) => sum + p.maxScore, 0);
@@ -75,6 +95,7 @@ function computeFinalScoring(rubric, aiRaw) {
         method: 'parameter',
         trki_name: rubric.trkiName,
         parameters,
+        criteria: [],
         total_score_earned: totalEarned,
         total_score_max: totalMax,
         kzo_cap_applied: hasKzo
